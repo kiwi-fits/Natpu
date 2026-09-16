@@ -1,0 +1,176 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MeetingStatus {
+  OPEN
+  CALCULATED
+  SETTLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUBMITTED
+  SETTLED
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  phone     String?
+  role      Role       @default(MEMBER)
+  status    UserStatus @default(ACTIVE)
+  avatarUrl String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  createdMeetings    Meeting[]           @relation("CreatedBy")
+  meetingAttendees   MeetingAttendee[]
+  expenses           Expense[]
+  settlements        Settlement[]        @relation("SettlementUser")
+  settledByUser      Settlement[]        @relation("SettledBy")
+  auditLogsUser      AuditLog[]          @relation("AuditUser")
+  auditLogsTarget    AuditLog[]          @relation("AuditTarget")
+  notifications      Notification[]
+
+  @@map("users")
+}
+
+model BankDetails {
+  id            String   @id @default(cuid())
+  bankName      String
+  accountName   String
+  accountNumber String
+  branch        String?
+  qrCodeUrl     String?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  @@map("bank_details")
+}
+
+model Meeting {
+  id        String        @id @default(cuid())
+  title     String
+  date      DateTime
+  location  String?
+  notes     String?
+  status    MeetingStatus @default(OPEN)
+  createdBy String
+
+  creator    User     @relation("CreatedBy", fields: [createdBy], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  attendees   MeetingAttendee[]
+  expenses    Expense[]
+  settlements Settlement[]
+  auditLogs   AuditLog[]
+  notifications Notification[]
+
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  id        String   @id @default(cuid())
+  meetingId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([meetingId, userId])
+  @@map("meeting_attendees")
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  meetingId String
+  userId    String
+  amount    Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([meetingId, userId])
+  @@map("expenses")
+}
+
+model Settlement {
+  id             String        @id @default(cuid())
+  meetingId      String
+  userId         String
+  expectedAmount Decimal       @db.Decimal(12, 2)
+  actualAmount   Decimal?      @db.Decimal(12, 2)
+  status         PaymentStatus @default(PENDING)
+  note           String?
+  submittedAt    DateTime?
+  settledAt      DateTime?
+  settledBy      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  meeting      Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user         User    @relation("SettlementUser", fields: [userId], references: [id])
+  settledByUser User?  @relation("SettledBy", fields: [settledBy], references: [id])
+
+  @@unique([meetingId, userId])
+  @@map("settlements")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  action       String
+  meetingId    String?
+  targetUserId String?
+  oldValue     String?
+  newValue     String?
+  createdAt    DateTime @default(now())
+
+  user       User     @relation("AuditUser", fields: [userId], references: [id])
+  meeting    Meeting? @relation(fields: [meetingId], references: [id])
+  targetUser User?    @relation("AuditTarget", fields: [targetUserId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  meetingId String?
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  meeting Meeting? @relation(fields: [meetingId], references: [id])
+
+  @@map("notifications")
+}
