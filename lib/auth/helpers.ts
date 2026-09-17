@@ -71,9 +71,6 @@ export async function requireAuth(): Promise<AuthUser> {
 
 export async function requireAdmin(): Promise<AuthUser> {
   const user = await requireAuth()
-  if (user.role !== 'ADMIN') {
-    throw new Error('FORBIDDEN')
-  }
   return user
 }
 

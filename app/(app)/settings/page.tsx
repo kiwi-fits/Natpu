@@ -8,7 +8,7 @@ export const metadata = { title: 'Settings' }
 
 export default async function SettingsPage() {
   const user = await getAuthUser()
-  if (!user || user.role !== 'ADMIN') redirect('/dashboard')
+  if (!user) redirect('/login')
 
   const bankDetails = await prisma.bankDetails.findFirst()
 

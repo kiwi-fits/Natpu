@@ -9,22 +9,17 @@ type NavItem = {
   href: string
   label: string
   icon: LucideIcon
-  adminOnly?: boolean
 }
 
-const allNavItems: NavItem[] = [
+const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/meetings', label: 'Meetings', icon: Calendar },
-  { href: '/members', label: 'Members', icon: Users, adminOnly: true },
-  { href: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
+  { href: '/members', label: 'Members', icon: Users },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function BottomNav({ role }: { role: Role }) {
+export default function BottomNav({ role }: { role?: Role }) {
   const pathname = usePathname()
-
-  const navItems = allNavItems.filter(item =>
-    !item.adminOnly || role === 'ADMIN'
-  )
 
   return (
     <nav className="bottom-nav" aria-label="Main navigation">

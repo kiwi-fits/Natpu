@@ -35,11 +35,9 @@ export default async function MeetingsPage() {
           <h1 className="text-ios-title2 text-primary">Meetings</h1>
           <p className="text-sm text-gray-500 mt-0.5">{meetings.length} total meetings</p>
         </div>
-        {user.role === 'ADMIN' && (
-          <Link href="/meetings/new" id="meetings-new-btn" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2.5">
-            <Plus className="w-4 h-4" /> New
-          </Link>
-        )}
+        <Link href="/meetings/new" id="meetings-new-btn" className="btn-primary flex items-center gap-1.5 text-sm px-4 py-2.5">
+          <Plus className="w-4 h-4" /> New
+        </Link>
       </div>
 
       {meetings.length === 0 && (
@@ -49,11 +47,9 @@ export default async function MeetingsPage() {
           </div>
           <h3 className="font-semibold text-gray-700 text-lg">No meetings yet</h3>
           <p className="text-gray-400 text-sm mt-1 mb-4">Create your first group expense meeting.</p>
-          {user.role === 'ADMIN' && (
-            <Link href="/meetings/new" className="btn-primary inline-flex items-center gap-2">
-              <Plus className="w-4 h-4" /> Create Meeting
-            </Link>
-          )}
+          <Link href="/meetings/new" className="btn-primary inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Create Meeting
+          </Link>
         </div>
       )}
 

@@ -147,13 +147,11 @@ export default async function DashboardPage() {
           <h1 className="text-ios-title2 text-primary">
             {getGreeting(user.name.split(' ')[0])}
           </h1>
-          {user.role === 'ADMIN' && (
-            <div className="mt-1">
-              <span className="inline-flex items-center bg-ios-blue/10 text-ios-blue text-[11px] font-semibold px-2 py-0.5 rounded-full">
-                Admin
-              </span>
-            </div>
-          )}
+          <div className="mt-1">
+            <span className="inline-flex items-center bg-ios-blue/10 text-ios-blue text-[11px] font-semibold px-2 py-0.5 rounded-full">
+              Admin
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <NotificationBell count={unreadCount} notifications={JSON.parse(JSON.stringify(allNotifications))} userId={user.id} />
@@ -161,43 +159,41 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ─── Admin Stats — iOS Card Style ─── */}
-      {user.role === 'ADMIN' && (
-        <div className="mb-6 animate-fade-in">
-          <div className="gradient-header rounded-2xl p-5">
-            <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-3">Meeting Overview</p>
-            <div className="grid grid-cols-2 gap-4 items-baseline">
-              <div className="min-w-0">
-                <p className="text-white/50 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Total Spend</p>
-                <p className="text-white font-bold text-base sm:text-xl tabular-nums truncate">
-                  {formatCurrencyDisplay(totalMeetingSpend)}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-white/50 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Last Spend</p>
-                <p className="text-white font-bold text-base sm:text-xl tabular-nums truncate">
-                  {formatCurrencyDisplay(lastMeetingSpend)}
-                </p>
-              </div>
+      {/* ─── Meeting Overview — iOS Card Style ─── */}
+      <div className="mb-6 animate-fade-in">
+        <div className="gradient-header rounded-2xl p-5">
+          <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-3">Meeting Overview</p>
+          <div className="grid grid-cols-2 gap-4 items-baseline">
+            <div className="min-w-0">
+              <p className="text-white/50 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Total Spend</p>
+              <p className="text-white font-bold text-base sm:text-xl tabular-nums truncate">
+                {formatCurrencyDisplay(totalMeetingSpend)}
+              </p>
             </div>
-
-            <div className="mt-5 flex items-center gap-3">
-              <Link
-                href="/meetings/new"
-                className="flex-1 h-12 flex items-center justify-center gap-2 bg-white text-primary rounded-[14px] font-bold text-sm transition-all active:scale-[0.97]"
-                id="new-meeting-btn"
-              >
-                <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
-                New
-              </Link>
-              <WhatsAppShareButton
-                totalSpend={totalMeetingSpend}
-                memberBalances={memberBalances.map(m => ({ name: m.name, netBalance: m.netBalance, pendingToPay: m.pendingToPay }))}
-              />
+            <div className="min-w-0">
+              <p className="text-white/50 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Last Spend</p>
+              <p className="text-white font-bold text-base sm:text-xl tabular-nums truncate">
+                {formatCurrencyDisplay(lastMeetingSpend)}
+              </p>
             </div>
           </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <Link
+              href="/meetings/new"
+              className="flex-1 h-12 flex items-center justify-center gap-2 bg-white text-primary rounded-[14px] font-bold text-sm transition-all active:scale-[0.97]"
+              id="new-meeting-btn"
+            >
+              <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
+              New
+            </Link>
+            <WhatsAppShareButton
+              totalSpend={totalMeetingSpend}
+              memberBalances={memberBalances.map(m => ({ name: m.name, netBalance: m.netBalance, pendingToPay: m.pendingToPay }))}
+            />
+          </div>
         </div>
-      )}
+      </div>
 
       {/* ─── Member Balances — Interactive iOS Grouped List ─── */}
       {memberBalances.length > 0 && (

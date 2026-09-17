@@ -10,7 +10,7 @@ export const metadata = { title: 'Members' }
 
 export default async function MembersPage() {
   const user = await getAuthUser()
-  if (!user || user.role !== 'ADMIN') redirect('/dashboard')
+  if (!user) redirect('/login')
 
   const members = await prisma.user.findMany({
     orderBy: [{ role: 'asc' }, { name: 'asc' }],
