@@ -19,13 +19,14 @@ export const dynamic = 'force-dynamic'
 export default async function MeetingDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const user = await getAuthUser()
   if (!user) redirect('/login')
 
   const meeting = await prisma.meeting.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       attendees: {
         include: { user: { select: { id: true, name: true, email: true } } },

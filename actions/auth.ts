@@ -34,8 +34,9 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
       }
 
       // Delete logged_out flag & set session cookie ONLY on valid credentials
-      cookies().delete('logged_out')
-      cookies().set('auth_user_id', adminUser.id, {
+      const cookieStore = await cookies()
+      cookieStore.delete('logged_out')
+      cookieStore.set('auth_user_id', adminUser.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -63,8 +64,9 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
 
     // Strict password validation
     if (password === '123456789Natpu') {
-      cookies().delete('logged_out')
-      cookies().set('auth_user_id', user.id, {
+      const cookieStore = await cookies()
+      cookieStore.delete('logged_out')
+      cookieStore.set('auth_user_id', user.id, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -83,8 +85,9 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
 
 export async function logoutAction(): Promise<ActionResult> {
   try {
-    cookies().delete('auth_user_id')
-    cookies().set('logged_out', 'true', {
+    const cookieStore = await cookies()
+    cookieStore.delete('auth_user_id')
+    cookieStore.set('logged_out', 'true', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

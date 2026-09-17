@@ -11,7 +11,7 @@ export type AuthUser = {
 export async function getAuthUser(): Promise<AuthUser | null> {
   try {
     const { cookies } = await import('next/headers')
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
 
     // If explicitly logged out, enforce logged-out state
     const isLoggedOut = cookieStore.get('logged_out')?.value === 'true'
@@ -44,7 +44,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   // Fallback: Supabase auth
   try {
     const { createClient } = await import('@/lib/supabase/server')
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (!error && user) {

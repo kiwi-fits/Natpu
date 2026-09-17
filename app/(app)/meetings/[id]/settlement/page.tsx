@@ -10,12 +10,13 @@ import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
-export default async function SettlementPage({ params }: { params: { id: string } }) {
+export default async function SettlementPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const user = await getAuthUser()
   if (!user) redirect('/login')
 
   const meeting = await prisma.meeting.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       settlements: {
         include: { user: { select: { id: true, name: true } } },
@@ -27,7 +28,7 @@ export default async function SettlementPage({ params }: { params: { id: string 
   })
 
   if (!meeting) notFound()
-  if (meeting.status === 'OPEN') redirect(`/meetings/${params.id}`)
+  if (meeting.status === 'OPEN') redirect(`/meetings/${id}`)
 
   const bankDetails = await prisma.bankDetails.findFirst()
 
@@ -49,7 +50,7 @@ export default async function SettlementPage({ params }: { params: { id: string 
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <Link
-          href={`/meetings/${params.id}`}
+          href={`/meetings/${id}`}
           className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -146,7 +147,7 @@ export default async function SettlementPage({ params }: { params: { id: string 
               }}
               isAdmin={user.role === 'ADMIN'}
               currentUserId={user.id}
-              meetingId={params.id}
+              meetingId={id}
             />
           ))}
         </div>
