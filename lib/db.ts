@@ -1,24 +1,29 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaD1 } from '@prisma/adapter-d1'
-
-let cachedD1Client: PrismaClient | null = null
+import { getCloudflareContext } from '@opennextjs/cloudflare'
 
 function getPrismaClient(): PrismaClient {
-  // Check for Cloudflare D1 runtime context
+  // 1. Direct symbol check on globalThis (OpenNext standard)
   try {
-    const { getCloudflareContext } = require('@opennextjs/cloudflare')
-    const ctx = getCloudflareContext()
-    if (ctx?.env?.DB) {
-      if (!cachedD1Client) {
-        const adapter = new PrismaD1(ctx.env.DB)
-        cachedD1Client = new PrismaClient({ adapter })
-      }
-      return cachedD1Client
+    const cfGlobal = (globalThis as any)[Symbol.for('__cloudflare-context__')]
+    const dbBinding = cfGlobal?.env?.DB
+    if (dbBinding) {
+      const adapter = new PrismaD1(dbBinding)
+      return new PrismaClient({ adapter })
     }
-  } catch {
-    // Non-Cloudflare environment (local dev, migrations, or tests)
-  }
+  } catch {}
 
+  // 2. getCloudflareContext helper
+  try {
+    const ctx = getCloudflareContext()
+    const db = (ctx?.env as any)?.DB
+    if (db) {
+      const adapter = new PrismaD1(db)
+      return new PrismaClient({ adapter })
+    }
+  } catch {}
+
+  // 3. Fallback for local development and build step
   const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
   }

@@ -77,9 +77,9 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     }
 
     return { success: false, error: 'Invalid password. Please check your credentials.' }
-  } catch (err) {
-    console.error('loginAction error:', err)
-    return { success: false, error: 'Login failed. Please try again.' }
+  } catch (err: any) {
+    console.error('loginAction error:', err?.message || err, err?.stack)
+    return { success: false, error: err?.message || 'Login failed. Please try again.' }
   }
 }
 
