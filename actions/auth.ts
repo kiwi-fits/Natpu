@@ -16,67 +16,38 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     const isTargetAdminUsername = identifier.toLowerCase() === 'admin' || identifier.toLowerCase() === 'admin@splitmeet.local'
     const isTargetAdminPassword = password === '123456789Natpu'
 
-    if (isTargetAdminUsername && isTargetAdminPassword) {
-      // Find Admin user in DB
-      let adminUser = await prisma.user.findFirst({
-        where: { role: 'ADMIN', status: 'ACTIVE' },
-      })
-
-      if (!adminUser) {
-        adminUser = await prisma.user.create({
-          data: {
-            name: 'Admin',
-            email: 'admin@splitmeet.local',
-            role: 'ADMIN',
-            status: 'ACTIVE',
-          },
-        })
-      }
-
-      // Delete logged_out flag & set session cookie ONLY on valid credentials
-      const cookieStore = await cookies()
-      cookieStore.delete('logged_out')
-      cookieStore.set('auth_user_id', adminUser.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      })
-
-      return { success: true, data: undefined }
+    if (!isTargetAdminUsername || !isTargetAdminPassword) {
+      return { success: false, error: 'Invalid admin credentials. Only the administrator can log in.' }
     }
 
-    // Check member user in DB
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { name: identifier },
-          { email: identifier },
-        ],
-        status: 'ACTIVE',
-      },
+    // Find Admin user in DB
+    let adminUser = await prisma.user.findFirst({
+      where: { role: 'ADMIN', status: 'ACTIVE' },
     })
 
-    if (!user) {
-      return { success: false, error: 'Invalid username or password.' }
-    }
-
-    // Strict password validation
-    if (password === '123456789Natpu') {
-      const cookieStore = await cookies()
-      cookieStore.delete('logged_out')
-      cookieStore.set('auth_user_id', user.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
+    if (!adminUser) {
+      adminUser = await prisma.user.create({
+        data: {
+          name: 'Admin',
+          email: 'admin@splitmeet.local',
+          role: 'ADMIN',
+          status: 'ACTIVE',
+        },
       })
-      return { success: true, data: undefined }
     }
 
-    return { success: false, error: 'Invalid password. Please check your credentials.' }
+    // Set session cookie ONLY for Admin
+    const cookieStore = await cookies()
+    cookieStore.delete('logged_out')
+    cookieStore.set('auth_user_id', adminUser.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    })
+
+    return { success: true, data: undefined }
   } catch (err: any) {
     console.error('loginAction error:', err?.message || err, err?.stack)
     return { success: false, error: err?.message || 'Login failed. Please try again.' }

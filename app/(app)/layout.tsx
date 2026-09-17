@@ -9,7 +9,7 @@ export default async function AppLayout({
   children: React.ReactNode
 }) {
   const user = await getAuthUser()
-  if (!user) redirect('/login')
+  if (!user || user.role !== 'ADMIN') redirect('/login')
 
   return (
     <div className="min-h-screen bg-background">
