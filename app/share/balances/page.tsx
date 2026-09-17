@@ -1,11 +1,23 @@
+import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
 import ShareBalancesClient, { MemberBalanceData, MemberMeetingBreakdown, BankDetailsData } from '@/components/share/ShareBalancesClient'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Natpu — Member Balances',
-  description: 'See member balances and exact calculation breakdown',
+export const metadata: Metadata = {
+  title: 'Natpu — Member Balances & Settlement Statement',
+  description: 'View group expense summary, individual member balances, meeting breakdowns, and verified bank account transfer details.',
+  openGraph: {
+    title: 'Natpu • Group Expense Statement',
+    description: 'Itemized group expense breakdown, real-time member balances, and official settlement bank details.',
+    siteName: 'Natpu',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Natpu • Group Expense Statement',
+    description: 'Itemized group expense breakdown, real-time member balances, and official settlement bank details.',
+  },
 }
 
 export default async function ShareBalancesPage() {

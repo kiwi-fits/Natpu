@@ -190,7 +190,10 @@ export default async function DashboardPage() {
                 <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
                 New
               </Link>
-              <WhatsAppShareButton memberBalances={memberBalances.map(m => ({ name: m.name, netBalance: m.netBalance, pendingToPay: m.pendingToPay }))} />
+              <WhatsAppShareButton
+                totalSpend={totalMeetingSpend}
+                memberBalances={memberBalances.map(m => ({ name: m.name, netBalance: m.netBalance, pendingToPay: m.pendingToPay }))}
+              />
             </div>
           </div>
         </div>

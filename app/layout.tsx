@@ -10,12 +10,19 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://natpu.fits-shop.workers.dev'),
   title: {
     default: 'Natpu – Spend together. Settle simply.',
     template: '%s | Natpu',
   },
   description: 'Private friend group expense tracker. Split costs, settle payments, and keep everyone on the same page.',
   keywords: ['expense splitting', 'group expenses', 'friend expenses', 'settle payments', 'natpu'],
+  openGraph: {
+    title: 'Natpu – Spend together. Settle simply.',
+    description: 'Private friend group expense tracker. Split costs, settle payments, and keep everyone on the same page.',
+    siteName: 'Natpu',
+    type: 'website',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
