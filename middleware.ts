@@ -11,30 +11,7 @@ export async function middleware(request: NextRequest) {
   const isLoggedOutCookie = request.cookies.get('logged_out')?.value === 'true'
   const hasSessionCookie = Boolean(request.cookies.get('auth_user_id')?.value)
 
-  // Determine if user is authenticated
-  let isAuthenticated = false
-
-  if (!isLoggedOutCookie && hasSessionCookie) {
-    isAuthenticated = true
-  } else if (!isLoggedOutCookie && process.env.DEV_MODE === 'true') {
-    isAuthenticated = true
-  } else if (!isLoggedOutCookie && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    try {
-      const { createServerClient } = await import('@supabase/ssr')
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-          cookies: {
-            getAll() { return request.cookies.getAll() },
-            setAll() {},
-          },
-        }
-      )
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) isAuthenticated = true
-    } catch {}
-  }
+  const isAuthenticated = !isLoggedOutCookie && hasSessionCookie
 
   // Public Login Route
   if (pathname === '/login') {

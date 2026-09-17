@@ -2,14 +2,21 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaD1 } from '@prisma/adapter-d1'
 import { getCloudflareContext } from '@opennextjs/cloudflare'
 
+let cachedPrisma: PrismaClient | null = null
+
 function getPrismaClient(): PrismaClient {
+  if (cachedPrisma) {
+    return cachedPrisma
+  }
+
   // 1. Direct symbol check on globalThis (OpenNext standard)
   try {
     const cfGlobal = (globalThis as any)[Symbol.for('__cloudflare-context__')]
     const dbBinding = cfGlobal?.env?.DB
     if (dbBinding) {
       const adapter = new PrismaD1(dbBinding)
-      return new PrismaClient({ adapter })
+      cachedPrisma = new PrismaClient({ adapter })
+      return cachedPrisma
     }
   } catch {}
 
@@ -19,7 +26,8 @@ function getPrismaClient(): PrismaClient {
     const db = (ctx?.env as any)?.DB
     if (db) {
       const adapter = new PrismaD1(db)
-      return new PrismaClient({ adapter })
+      cachedPrisma = new PrismaClient({ adapter })
+      return cachedPrisma
     }
   } catch {}
 
@@ -30,7 +38,7 @@ function getPrismaClient(): PrismaClient {
 
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+      log: ['error'],
     })
   }
 
@@ -44,3 +52,4 @@ export const prisma = new Proxy({} as PrismaClient, {
     return typeof val === 'function' ? val.bind(client) : val
   },
 })
+

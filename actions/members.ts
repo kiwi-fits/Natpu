@@ -5,15 +5,7 @@ import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/helpers'
 import { createAuditLog } from '@/lib/audit'
 import { updateMemberSchema } from '@/lib/validation/schemas'
-import { createClient } from '@supabase/supabase-js'
 import type { ActionResult } from './meetings'
-
-function getAdminSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
-}
 
 export async function createMember(formData: FormData): Promise<ActionResult> {
   try {
@@ -262,16 +254,6 @@ export async function deactivateMember(userId: string): Promise<ActionResult> {
       where: { id: userId },
       data: { status: 'INACTIVE' },
     })
-
-    // Also disable in Supabase Auth if user exists in Supabase
-    try {
-      const adminSupabase = getAdminSupabase()
-      if (adminSupabase) {
-        await adminSupabase.auth.admin.updateUserById(userId, { ban_duration: 'none' })
-      }
-    } catch {
-      // Ignore if user is only in Prisma database
-    }
 
     await createAuditLog({
       userId: admin.id,

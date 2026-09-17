@@ -15,65 +15,56 @@ export default async function DashboardPage() {
   const user = await getAuthUser()
   if (!user) return null
 
-  // Fetch data
-  const allNotifications = await prisma.notification.findMany({
-    where: { userId: user.id },
-    include: {
-      meeting: {
-        include: {
-          expenses: true,
-          attendees: {
-            include: { user: { select: { id: true, name: true } } },
+  // Fetch data in parallel for maximum speed on Cloudflare D1
+  const [
+    allNotifications,
+    totalExpenseAgg,
+    lastMeetingWithExpenses,
+    allMembers,
+    calculatedMeetings,
+  ] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: user.id },
+      include: {
+        meeting: {
+          include: {
+            expenses: true,
+            attendees: {
+              include: { user: { select: { id: true, name: true } } },
+            },
+            settlements: true,
           },
-          settlements: true,
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-  })
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+    }),
+    prisma.meeting.findFirst({
+      orderBy: { createdAt: 'desc' },
+      include: { expenses: true },
+    }),
+    prisma.user.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, name: true, role: true, avatarUrl: true },
+    }),
+    prisma.meeting.findMany({
+      where: { status: { in: ['CALCULATED', 'SETTLED'] } },
+      include: {
+        attendees: true,
+        expenses: true,
+        settlements: true,
+      },
+    }),
+  ])
 
   const unreadCount = allNotifications.filter(n => !n.read).length
-
-  // Stats for admin
-  const totalExpenseAgg = await prisma.expense.aggregate({
-    _sum: { amount: true },
-  })
   const totalMeetingSpend = totalExpenseAgg._sum.amount ? parseFloat(totalExpenseAgg._sum.amount.toString()) : 0
-
-  const lastMeetingWithExpenses = await prisma.meeting.findFirst({
-    where: {
-      expenses: {
-        some: {
-          amount: { gt: 0 },
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-    include: { expenses: true },
-  }) || await prisma.meeting.findFirst({
-    orderBy: { createdAt: 'desc' },
-    include: { expenses: true },
-  })
-
   const lastMeetingSpend = lastMeetingWithExpenses
     ? lastMeetingWithExpenses.expenses.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0)
     : 0
-
-  // Member Balances (Includes Admin)
-  const allMembers = await prisma.user.findMany({
-    where: { status: 'ACTIVE' },
-    select: { id: true, name: true, role: true, avatarUrl: true },
-  })
-
-  const calculatedMeetings = await prisma.meeting.findMany({
-    where: { status: { in: ['CALCULATED', 'SETTLED'] } },
-    include: {
-      attendees: true,
-      expenses: true,
-      settlements: true,
-    },
-  })
 
   const memberBalances = allMembers.map(member => {
     let totalSpent = 0
