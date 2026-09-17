@@ -5,7 +5,7 @@ import { submitPayment, markSettled } from '@/actions/settlements'
 import { toast } from 'sonner'
 import { CheckCircle, Clock, CreditCard, X, AlertCircle } from 'lucide-react'
 import { formatCurrencyDisplay, formatDateTime, getInitials } from '@/lib/utils'
-import { PaymentStatus } from '@prisma/client'
+import { PaymentStatus } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 
 type Settlement = {

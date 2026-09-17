@@ -12,6 +12,7 @@ import {
 import MeetingStatusBadge from '@/components/meetings/MeetingStatusBadge'
 import SpendingModal from '@/components/meetings/SpendingModal'
 import AdminMeetingControls from '@/components/meetings/AdminMeetingControls'
+import { MeetingStatus } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -82,7 +83,7 @@ export default async function MeetingDetailPage({
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-primary leading-tight truncate">{meeting.title}</h1>
         </div>
-        <MeetingStatusBadge status={meeting.status} />
+        <MeetingStatusBadge status={meeting.status as MeetingStatus} />
       </div>
 
       {/* Meeting Info Card */}
@@ -224,7 +225,7 @@ export default async function MeetingDetailPage({
         <AdminMeetingControls
           meeting={{
             id: meeting.id,
-            status: meeting.status,
+            status: meeting.status as MeetingStatus,
             title: meeting.title,
             attendeeCount: meeting.attendees.length,
             expenseCount: meeting.expenses.filter(e => parseFloat(e.amount.toString()) >= 0).length,

@@ -51,8 +51,8 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { name: { equals: identifier, mode: 'insensitive' } },
-          { email: { equals: identifier, mode: 'insensitive' } },
+          { name: identifier },
+          { email: identifier },
         ],
         status: 'ACTIVE',
       },

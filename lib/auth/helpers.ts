@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { Role } from '@prisma/client'
+import { Role } from '@/lib/types/database'
 
 export type AuthUser = {
   id: string
@@ -26,7 +26,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
         where: { id: sessionUserId, status: 'ACTIVE' },
         select: { id: true, name: true, email: true, role: true },
       })
-      if (dbUser) return dbUser
+      if (dbUser) return { ...dbUser, role: dbUser.role as Role }
     }
   } catch (err) {
     // Ignore cookie read error in non-request contexts
@@ -38,7 +38,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       where: { status: 'ACTIVE', role: 'ADMIN' },
       select: { id: true, name: true, email: true, role: true },
     })
-    return devUser
+    if (devUser) return { ...devUser, role: devUser.role as Role }
   }
 
   // Fallback: Supabase auth
@@ -52,7 +52,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
         where: { id: user.id, status: 'ACTIVE' },
         select: { id: true, name: true, email: true, role: true },
       })
-      if (dbUser) return dbUser
+      if (dbUser) return { ...dbUser, role: dbUser.role as Role }
     }
   } catch (err) {}
 

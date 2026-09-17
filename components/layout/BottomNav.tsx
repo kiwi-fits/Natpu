@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Calendar, Users, Settings, LucideIcon } from 'lucide-react'
-import { Role } from '@prisma/client'
+import { Role } from '@/lib/types/database'
 
 type NavItem = {
   href: string

@@ -233,7 +233,7 @@ export async function finalizeMeeting(meetingId: string): Promise<ActionResult> 
           data: {
             meetingId,
             userId: s.userId,
-            expectedAmount: new Decimal(s.amountOwed.toString()),
+            expectedAmount: s.amountOwed.toNumber(),
             status: 'PENDING',
           },
         })

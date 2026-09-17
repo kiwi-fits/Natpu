@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { createMember, createMembersBulk, updateMember, deactivateMember, reactivateMember } from '@/actions/members'
 import { toast } from 'sonner'
 import { Plus, X, UserX, UserCheck, MoreVertical, Pencil, Trash2, Users as UsersIcon } from 'lucide-react'
-import { Role, UserStatus } from '@prisma/client'
+import { Role, UserStatus } from '@/lib/types/database'
 
 type Member = {
   id: string

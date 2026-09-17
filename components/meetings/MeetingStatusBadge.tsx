@@ -1,4 +1,4 @@
-import { MeetingStatus } from '@prisma/client'
+import { MeetingStatus } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 
 const statusConfig = {

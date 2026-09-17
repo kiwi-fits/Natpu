@@ -45,10 +45,12 @@ export async function upsertExpense(formData: FormData): Promise<ActionResult> {
       where: { meetingId_userId: { meetingId, userId: user.id } },
     })
 
+    const numAmount = parseFloat(amount)
+
     await prisma.expense.upsert({
       where: { meetingId_userId: { meetingId, userId: user.id } },
-      create: { meetingId, userId: user.id, amount },
-      update: { amount },
+      create: { meetingId, userId: user.id, amount: numAmount },
+      update: { amount: numAmount },
     })
 
     await createAuditLog({
@@ -98,10 +100,12 @@ export async function adminUpdateExpense(
       where: { meetingId_userId: { meetingId, userId } },
     })
 
+    const parsedNum = parseFloat(parsed.data.amount)
+
     await prisma.expense.upsert({
       where: { meetingId_userId: { meetingId, userId } },
-      create: { meetingId, userId, amount: parsed.data.amount },
-      update: { amount: parsed.data.amount },
+      create: { meetingId, userId, amount: parsedNum },
+      update: { amount: parsedNum },
     })
 
     await createAuditLog({

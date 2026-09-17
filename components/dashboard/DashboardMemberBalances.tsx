@@ -5,7 +5,7 @@ import { ArrowUpRight, ArrowDownRight, ChevronRight, X, Check } from 'lucide-rea
 import { formatCurrencyDisplay } from '@/lib/utils'
 import { settleMemberBalance } from '@/actions/settlements'
 import { toast } from 'sonner'
-import { Role } from '@prisma/client'
+import { Role } from '@/lib/types/database'
 
 export type MemberBalance = {
   id: string

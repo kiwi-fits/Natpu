@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, CheckCircle, Clock, CreditCard, Copy, AlertCircle } from 'lucide-react'
 import CopyButton from '@/components/common/CopyButton'
 import SettlementCard from '@/components/settlement/SettlementCard'
+import { PaymentStatus } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -140,7 +141,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
                 userName: settlement.user.name,
                 expectedAmount: settlement.expectedAmount.toString(),
                 actualAmount: settlement.actualAmount?.toString() ?? null,
-                status: settlement.status,
+                status: settlement.status as PaymentStatus,
                 submittedAt: settlement.submittedAt?.toISOString() ?? null,
                 settledAt: settlement.settledAt?.toISOString() ?? null,
                 note: settlement.note ?? null,

@@ -4,6 +4,7 @@ import { formatDate, formatCurrencyDisplay } from '@/lib/utils'
 import Link from 'next/link'
 import { Plus, ChevronRight, Users } from 'lucide-react'
 import MeetingStatusBadge from '@/components/meetings/MeetingStatusBadge'
+import { MeetingStatus } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,7 +82,7 @@ export default async function MeetingsPage() {
                         <p className="text-sm text-gray-500 mt-0.5">{formatDate(meeting.date)}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <MeetingStatusBadge status={meeting.status} />
+                        <MeetingStatusBadge status={meeting.status as MeetingStatus} />
                         <ChevronRight className="w-4 h-4 text-gray-400" />
                       </div>
                     </div>

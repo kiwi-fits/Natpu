@@ -2,6 +2,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
 	"name": "natpu",
+	"account_id": "2ea4e508d1b10038499254ce93a9e40c",
 	"build": {
 		"command": "npx opennextjs-cloudflare build"
 	},
@@ -26,5 +27,12 @@
 		// Enable image optimization
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "natpu-db",
+			"database_id": "a9ae0d4e-e598-43dd-a93b-aea1eecbdf71"
+		}
+	]
 }

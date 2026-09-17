@@ -35,6 +35,23 @@ async function main() {
     },
   })
 
+  console.log('👥 Creating default members...')
+  const members = [
+    { name: 'Ajith', email: 'ajith.235ty@splitmeet.local' },
+    { name: 'Thanu', email: 'thanu.q64ga@splitmeet.local' },
+    { name: 'Regin', email: 'regin.jwfxd@splitmeet.local' },
+  ]
+  for (const m of members) {
+    await prisma.user.create({
+      data: {
+        name: m.name,
+        email: m.email,
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      },
+    })
+  }
+
   console.log('✅ Local database cleaned successfully!')
 }
 

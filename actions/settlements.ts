@@ -74,7 +74,7 @@ export async function markSettled(formData: FormData): Promise<ActionResult> {
       where: { id: settlementId },
       data: {
         status: 'SETTLED',
-        actualAmount: new Decimal(actualAmount),
+        actualAmount: parseFloat(actualAmount),
         settledAt: new Date(),
         settledBy: admin.id,
         note: note || null,
@@ -130,7 +130,7 @@ export async function updateSettledAmount(
 
     await prisma.settlement.update({
       where: { id: settlementId },
-      data: { actualAmount: new Decimal(parsed.data.actualAmount) },
+      data: { actualAmount: parseFloat(parsed.data.actualAmount) },
     })
 
     await createAuditLog({
@@ -193,8 +193,8 @@ export async function settleMemberBalance({
             await prisma.settlement.update({
               where: { id: settlement.id },
               data: {
-                expectedAmount: settleAmt,
-                actualAmount: settleAmt,
+                expectedAmount: settleAmt.toNumber(),
+                actualAmount: settleAmt.toNumber(),
                 status: 'SETTLED',
                 settledAt: new Date(),
                 settledBy: admin.id,
@@ -207,7 +207,7 @@ export async function settleMemberBalance({
               data: {
                 meetingId: settlement.meetingId,
                 userId: settlement.userId,
-                expectedAmount: remainingExpected,
+                expectedAmount: remainingExpected.toNumber(),
                 status: 'PENDING',
                 note: 'Remaining balance after partial settlement',
               },
@@ -218,7 +218,7 @@ export async function settleMemberBalance({
               where: { id: settlement.id },
               data: {
                 status: 'SETTLED',
-                actualAmount: settleAmt,
+                actualAmount: settleAmt.toNumber(),
                 settledAt: new Date(),
                 settledBy: admin.id,
                 note: 'MEMBER_TO_ADMIN',
@@ -251,8 +251,8 @@ export async function settleMemberBalance({
           data: {
             meetingId: meeting.id,
             userId,
-            expectedAmount: new Decimal(amount),
-            actualAmount: new Decimal(amount),
+            expectedAmount: amount,
+            actualAmount: amount,
             status: 'SETTLED',
             settledAt: new Date(),
             settledBy: admin.id,
@@ -283,8 +283,8 @@ export async function settleMemberBalance({
         data: {
           meetingId: meeting.id,
           userId,
-          expectedAmount: new Decimal(amount),
-          actualAmount: new Decimal(amount),
+          expectedAmount: amount,
+          actualAmount: amount,
           status: 'SETTLED',
           settledAt: new Date(),
           settledBy: admin.id,

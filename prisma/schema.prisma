@@ -1,57 +1,36 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file for Cloudflare D1 (SQLite)
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-}
-
-enum Role {
-  ADMIN
-  MEMBER
-}
-
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum MeetingStatus {
-  OPEN
-  CALCULATED
-  SETTLED
-}
-
-enum PaymentStatus {
-  PENDING
-  SUBMITTED
-  SETTLED
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  email     String     @unique
+  email     String   @unique
   phone     String?
-  role      Role       @default(MEMBER)
-  status    UserStatus @default(ACTIVE)
+  role      String   @default("MEMBER")
+  status    String   @default("ACTIVE")
   avatarUrl String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  createdMeetings    Meeting[]           @relation("CreatedBy")
-  meetingAttendees   MeetingAttendee[]
-  expenses           Expense[]
-  settlements        Settlement[]        @relation("SettlementUser")
-  settledByUser      Settlement[]        @relation("SettledBy")
-  auditLogsUser      AuditLog[]          @relation("AuditUser")
-  auditLogsTarget    AuditLog[]          @relation("AuditTarget")
-  notifications      Notification[]
+  createdMeetings  Meeting[]         @relation("CreatedBy")
+  meetingAttendees MeetingAttendee[]
+  expenses         Expense[]
+  settlements      Settlement[]      @relation("SettlementUser")
+  settledByUser    Settlement[]      @relation("SettledBy")
+  auditLogsUser    AuditLog[]        @relation("AuditUser")
+  auditLogsTarget  AuditLog[]        @relation("AuditTarget")
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -70,23 +49,23 @@ model BankDetails {
 }
 
 model Meeting {
-  id        String        @id @default(cuid())
+  id        String   @id @default(cuid())
   title     String
   date      DateTime
   location  String?
   notes     String?
-  status    MeetingStatus @default(OPEN)
+  status    String   @default("OPEN")
   createdBy String
 
-  creator    User     @relation("CreatedBy", fields: [createdBy], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  creator   User     @relation("CreatedBy", fields: [createdBy], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  attendees   MeetingAttendee[]
-  expenses    Expense[]
-  settlements Settlement[]
-  auditLogs   AuditLog[]
+  attendees     MeetingAttendee[]
+  expenses      Expense[]
+  settlements   Settlement[]
+  auditLogs     AuditLog[]
   notifications Notification[]
 
   @@map("meetings")
@@ -109,7 +88,7 @@ model Expense {
   id        String   @id @default(cuid())
   meetingId String
   userId    String
-  amount    Decimal  @default(0) @db.Decimal(12, 2)
+  amount    Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -121,22 +100,22 @@ model Expense {
 }
 
 model Settlement {
-  id             String        @id @default(cuid())
+  id             String    @id @default(cuid())
   meetingId      String
   userId         String
-  expectedAmount Decimal       @db.Decimal(12, 2)
-  actualAmount   Decimal?      @db.Decimal(12, 2)
-  status         PaymentStatus @default(PENDING)
+  expectedAmount Float
+  actualAmount   Float?
+  status         String    @default("PENDING")
   note           String?
   submittedAt    DateTime?
   settledAt      DateTime?
   settledBy      String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  meeting      Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user         User    @relation("SettlementUser", fields: [userId], references: [id])
-  settledByUser User?  @relation("SettledBy", fields: [settledBy], references: [id])
+  meeting       Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user          User    @relation("SettlementUser", fields: [userId], references: [id])
+  settledByUser User?   @relation("SettledBy", fields: [settledBy], references: [id])
 
   @@unique([meetingId, userId])
   @@map("settlements")

@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { finalizeMeeting } from '@/actions/meetings'
 import { toast } from 'sonner'
 import { AlertTriangle, CheckCircle, Lock } from 'lucide-react'
-import { MeetingStatus } from '@prisma/client'
+import { MeetingStatus } from '@/lib/types/database'
 
 type Props = {
   meeting: {

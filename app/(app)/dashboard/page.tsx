@@ -7,6 +7,7 @@ import LogoutButton from '@/components/auth/LogoutButton'
 import NotificationBell from '@/components/layout/NotificationBell'
 import WhatsAppShareButton from '@/components/share/WhatsAppShareButton'
 import DashboardMemberBalances from '@/components/dashboard/DashboardMemberBalances'
+import { Role } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -127,7 +128,7 @@ export default async function DashboardPage() {
     return {
       id: member.id,
       name: member.name,
-      role: member.role,
+      role: member.role as Role,
       avatarUrl: member.avatarUrl,
       totalSpent,
       totalFairShare,
