@@ -8,14 +8,12 @@ type MemberBalance = {
   pendingToPay: number
 }
 
-export default function WhatsAppShareButton({ memberBalances }: { memberBalances: MemberBalance[] }) {
-  const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/share/balances`
-
+export default function WhatsAppShareButton({ memberBalances = [] }: { memberBalances: MemberBalance[] }) {
   function formatAmount(amount: number): string {
     return `Rs. ${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
   }
 
-  function generateWhatsAppMessage(): string {
+  function generateWhatsAppMessage(shareUrl: string): string {
     const lines: string[] = []
     lines.push('💰 *Natpu — Member Balances*')
     lines.push('━━━━━━━━━━━━━━━━━━━━━')
@@ -56,7 +54,8 @@ export default function WhatsAppShareButton({ memberBalances }: { memberBalances
   }
 
   function handleWhatsAppShare() {
-    const message = generateWhatsAppMessage()
+    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/balances` : ''
+    const message = generateWhatsAppMessage(shareUrl)
     const encodedMessage = encodeURIComponent(message)
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank')
   }

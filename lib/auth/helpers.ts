@@ -45,14 +45,16 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   try {
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.getUser()
+    if (supabase) {
+      const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (!error && user) {
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id, status: 'ACTIVE' },
-        select: { id: true, name: true, email: true, role: true },
-      })
-      if (dbUser) return { ...dbUser, role: dbUser.role as Role }
+      if (!error && user) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id, status: 'ACTIVE' },
+          select: { id: true, name: true, email: true, role: true },
+        })
+        if (dbUser) return { ...dbUser, role: dbUser.role as Role }
+      }
     }
   } catch (err) {}
 

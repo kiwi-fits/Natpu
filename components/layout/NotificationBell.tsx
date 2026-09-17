@@ -24,12 +24,12 @@ type Notification = {
 }
 
 export default function NotificationBell({
-  count,
-  notifications,
+  count = 0,
+  notifications = [],
   userId,
 }: {
   count: number
-  notifications: Notification[]
+  notifications?: Notification[]
   userId: string
 }) {
   const [open, setOpen] = useState(false)

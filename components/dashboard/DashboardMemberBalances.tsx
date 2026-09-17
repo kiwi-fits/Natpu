@@ -26,9 +26,9 @@ const avatarColors = [
 ]
 
 export default function DashboardMemberBalances({
-  memberBalances,
+  memberBalances = [],
 }: {
-  memberBalances: MemberBalance[]
+  memberBalances?: MemberBalance[]
 }) {
   const [selectedMember, setSelectedMember] = useState<MemberBalance | null>(null)
   const [direction, setDirection] = useState<'MEMBER_TO_ADMIN' | 'ADMIN_TO_MEMBER'>('MEMBER_TO_ADMIN')

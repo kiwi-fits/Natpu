@@ -1,23 +1,24 @@
 'use client'
 
-import { createClient } from '@/lib/supabase/client'
 import { logoutAction } from '@/actions/auth'
-import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { toast } from 'sonner'
-
 import { useState } from 'react'
 
 export default function LogoutButton() {
-  const supabase = createClient()
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   async function handleLogout() {
     if (loading) return
     setLoading(true)
     try {
-      await supabase.auth.signOut()
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        if (supabase) {
+          await supabase.auth.signOut()
+        }
+      }
     } catch {}
     await logoutAction()
     toast.success('Signed out successfully')
@@ -35,3 +36,4 @@ export default function LogoutButton() {
     </button>
   )
 }
+
