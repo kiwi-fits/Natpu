@@ -180,6 +180,7 @@ export default async function DashboardPage() {
             </Link>
             <WhatsAppShareButton
               totalSpend={totalMeetingSpend}
+              lastUpdatedDate={lastMeetingWithExpenses ? new Date(lastMeetingWithExpenses.date || lastMeetingWithExpenses.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
               memberBalances={memberBalances.map(m => ({ name: m.name, netBalance: m.netBalance, pendingToPay: m.pendingToPay }))}
             />
           </div>

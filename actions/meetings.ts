@@ -17,10 +17,10 @@ export async function createMeeting(formData: FormData): Promise<ActionResult<{ 
     const admin = await requireAdmin()
 
     const raw = {
-      title: formData.get('title') as string,
-      date: formData.get('date') as string,
-      location: formData.get('location') as string || undefined,
-      notes: formData.get('notes') as string || undefined,
+      title: ((formData.get('title') as string) || '').trim(),
+      date: ((formData.get('date') as string) || '').trim(),
+      location: ((formData.get('location') as string) || '').trim() || undefined,
+      notes: ((formData.get('notes') as string) || '').trim() || undefined,
       attendeeIds: formData.getAll('attendeeIds') as string[],
     }
 
@@ -39,29 +39,24 @@ export async function createMeeting(formData: FormData): Promise<ActionResult<{ 
       return { success: false, error: 'One or more selected attendees are invalid.' }
     }
 
-    const meeting = await prisma.$transaction(async (tx) => {
-      const m = await tx.meeting.create({
-        data: {
-          title,
-          date: new Date(date),
-          location,
-          notes,
-          status: 'OPEN',
-          createdBy: admin.id,
+    const parsedDate = new Date(date)
+    const meetingDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate
+
+    const meeting = await prisma.meeting.create({
+      data: {
+        title,
+        date: meetingDate,
+        location,
+        notes,
+        status: 'OPEN',
+        createdBy: admin.id,
+        attendees: {
+          create: attendeeIds.map(userId => ({ userId })),
         },
-      })
-
-      // Create attendees
-      await tx.meetingAttendee.createMany({
-        data: attendeeIds.map(userId => ({ meetingId: m.id, userId })),
-      })
-
-      // Create expense records (starting at 0) for all attendees
-      await tx.expense.createMany({
-        data: attendeeIds.map(userId => ({ meetingId: m.id, userId, amount: 0 })),
-      })
-
-      return m
+        expenses: {
+          create: attendeeIds.map(userId => ({ userId, amount: 0 })),
+        },
+      },
     })
 
     await createAuditLog({
@@ -80,7 +75,10 @@ export async function createMeeting(formData: FormData): Promise<ActionResult<{ 
       if (err.message === 'FORBIDDEN') return { success: false, error: 'Only admins can create meetings.' }
     }
     console.error('createMeeting error:', err)
-    return { success: false, error: 'Failed to create meeting. Please try again.' }
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to create meeting. Please try again.',
+    }
   }
 }
 
@@ -165,26 +163,28 @@ export async function updateAttendance(formData: FormData): Promise<ActionResult
     if (meeting.status === 'SETTLED') return { success: false, error: 'Cannot edit a settled meeting.' }
 
     // Warn if expenses exist (via client - server just proceeds)
-    await prisma.$transaction(async (tx) => {
-      // Remove all attendees
-      await tx.meetingAttendee.deleteMany({ where: { meetingId } })
-      // Remove all expenses
-      await tx.expense.deleteMany({ where: { meetingId } })
-      // Remove settlements
-      await tx.settlement.deleteMany({ where: { meetingId } })
-      // Re-add attendees
-      await tx.meetingAttendee.createMany({
+    // Remove all attendees
+    await prisma.meetingAttendee.deleteMany({ where: { meetingId } })
+    // Remove all expenses
+    await prisma.expense.deleteMany({ where: { meetingId } })
+    // Remove settlements
+    await prisma.settlement.deleteMany({ where: { meetingId } })
+
+    // Re-add attendees
+    if (attendeeIds.length > 0) {
+      await prisma.meetingAttendee.createMany({
         data: attendeeIds.map(userId => ({ meetingId, userId })),
       })
       // Re-create expense records at 0
-      await tx.expense.createMany({
+      await prisma.expense.createMany({
         data: attendeeIds.map(userId => ({ meetingId, userId, amount: 0 })),
       })
-      // Reset meeting to OPEN
-      await tx.meeting.update({
-        where: { id: meetingId },
-        data: { status: 'OPEN' },
-      })
+    }
+
+    // Reset meeting to OPEN
+    await prisma.meeting.update({
+      where: { id: meetingId },
+      data: { status: 'OPEN' },
     })
 
     await createAuditLog({ userId: admin.id, action: 'UPDATE_ATTENDANCE', meetingId })
@@ -223,26 +223,24 @@ export async function finalizeMeeting(meetingId: string): Promise<ActionResult> 
 
     const settlements = calculateSettlements(expenseInputs)
 
-    await prisma.$transaction(async (tx) => {
-      // Remove existing settlement records
-      await tx.settlement.deleteMany({ where: { meetingId } })
+    // Remove existing settlement records
+    await prisma.settlement.deleteMany({ where: { meetingId } })
 
-      // Create settlement records for payers only
-      for (const s of settlements) {
-        await tx.settlement.create({
-          data: {
-            meetingId,
-            userId: s.userId,
-            expectedAmount: s.amountOwed.toNumber(),
-            status: 'PENDING',
-          },
-        })
-      }
-
-      await tx.meeting.update({
-        where: { id: meetingId },
-        data: { status: 'CALCULATED' },
+    // Create settlement records for payers only
+    for (const s of settlements) {
+      await prisma.settlement.create({
+        data: {
+          meetingId,
+          userId: s.userId,
+          expectedAmount: s.amountOwed.toNumber(),
+          status: 'PENDING',
+        },
       })
+    }
+
+    await prisma.meeting.update({
+      where: { id: meetingId },
+      data: { status: 'CALCULATED' },
     })
 
     // Send notifications to people who owe money
@@ -281,12 +279,10 @@ export async function reopenMeeting(meetingId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin()
 
-    await prisma.$transaction(async (tx) => {
-      await tx.settlement.deleteMany({ where: { meetingId } })
-      await tx.meeting.update({
-        where: { id: meetingId },
-        data: { status: 'OPEN' },
-      })
+    await prisma.settlement.deleteMany({ where: { meetingId } })
+    await prisma.meeting.update({
+      where: { id: meetingId },
+      data: { status: 'OPEN' },
     })
 
     await createAuditLog({ userId: admin.id, action: 'REOPEN_MEETING', meetingId })

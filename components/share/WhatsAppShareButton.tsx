@@ -11,11 +11,12 @@ type MemberBalance = {
 interface WhatsAppShareButtonProps {
   memberBalances?: MemberBalance[]
   totalSpend?: number
+  lastUpdatedDate?: string
 }
 
 export default function WhatsAppShareButton({
   memberBalances = [],
-  totalSpend,
+  lastUpdatedDate,
 }: WhatsAppShareButtonProps) {
   function formatAmount(amount: number): string {
     return `Rs. ${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -24,61 +25,35 @@ export default function WhatsAppShareButton({
   function generateWhatsAppMessage(shareUrl: string): string {
     const lines: string[] = []
 
-    // Professional Header
-    lines.push('🧾 *NATPU • GROUP EXPENSE STATEMENT*')
-    lines.push('────────────────────────')
-
     const now = new Date()
-    const dateFormatted = now.toLocaleDateString('en-GB', {
+    const dateFormatted = lastUpdatedDate || now.toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     })
-    lines.push(`📅 *Date:* ${dateFormatted}`)
-
-    if (totalSpend !== undefined && totalSpend > 0) {
-      lines.push(`💰 *Total Group Spend:* ${formatAmount(totalSpend)}`)
-    }
+    lines.push(`*Date:* ${dateFormatted}`)
     lines.push('')
 
-    const toPay = memberBalances.filter(m => m.netBalance < 0)
-    const toReceive = memberBalances.filter(m => m.netBalance > 0)
-    const settled = memberBalances.filter(m => m.netBalance === 0)
+    // Only show members who have unsettled amounts
+    const unsettled = memberBalances
+      .filter(m => Math.abs(m.netBalance) >= 0.01)
+      .sort((a, b) => a.netBalance - b.netBalance)
 
-    // Outstanding Payments (Members who owe)
-    if (toPay.length > 0) {
-      const totalOutstanding = toPay.reduce((sum, m) => sum + Math.abs(m.netBalance), 0)
-      lines.push('🔴 *PENDING SETTLEMENT (TO PAY)*')
-      toPay.forEach(m => {
-        lines.push(`  • *${m.name}*: ${formatAmount(m.netBalance)}`)
+    if (unsettled.length > 0) {
+      unsettled.forEach(m => {
+        const formatted = formatAmount(m.netBalance)
+        if (m.netBalance < 0) {
+          // Admin has to borrow: show normally
+          lines.push(`*${m.name}:* ${formatted}`)
+        } else {
+          // Admin has to give: show within brackets
+          lines.push(`*${m.name}:* (${formatted})`)
+        }
       })
-      lines.push(`  ↳ _Total to collect:_ ${formatAmount(totalOutstanding)}`)
-      lines.push('')
     }
 
-    // Credits Due (Members who overpaid)
-    if (toReceive.length > 0) {
-      lines.push('🟢 *RECEIVABLE CREDITS (TO RECEIVE)*')
-      toReceive.forEach(m => {
-        lines.push(`  • *${m.name}*: +${formatAmount(m.netBalance)}`)
-      })
-      lines.push('')
-    }
-
-    // Settled Members
-    if (settled.length > 0) {
-      lines.push('✅ *SETTLED & UP-TO-DATE*')
-      const settledNames = settled.map(m => m.name).join(', ')
-      lines.push(`  • ${settledNames}`)
-      lines.push('')
-    }
-
-    // Footer & Call to Action
-    lines.push('────────────────────────')
-    lines.push('📊 *Itemized Breakdown & Bank Details:*')
+    lines.push('')
     lines.push(shareUrl)
-    lines.push('')
-    lines.push('_Please review itemized calculations and settle pending amounts._')
 
     return lines.join('\n')
   }

@@ -40,44 +40,28 @@ export async function createMember(formData: FormData): Promise<ActionResult> {
 
     // If previous amount has to be paid, create an opening balance meeting & settlement
     if (previousAmount > 0) {
-      await prisma.$transaction(async (tx) => {
-        const meeting = await tx.meeting.create({
-          data: {
-            title: 'Previous Balance',
-            date: new Date(),
-            status: 'CALCULATED',
-            createdBy: admin.id,
-            notes: `Initial pending balance for ${name}`,
+      await prisma.meeting.create({
+        data: {
+          title: 'Previous Balance',
+          date: new Date(),
+          status: 'CALCULATED',
+          createdBy: admin.id,
+          notes: `Initial pending balance for ${name}`,
+          attendees: {
+            create: { userId: newUser.id },
           },
-        })
-
-        // Add member as attendee
-        await tx.meetingAttendee.create({
-          data: {
-            meetingId: meeting.id,
-            userId: newUser.id,
+          expenses: {
+            create: { userId: admin.id, amount: previousAmount },
           },
-        })
-
-        // Expense paid by admin
-        await tx.expense.create({
-          data: {
-            meetingId: meeting.id,
-            userId: admin.id,
-            amount: previousAmount,
+          settlements: {
+            create: {
+              userId: newUser.id,
+              expectedAmount: previousAmount,
+              status: 'PENDING',
+              note: 'Previous pending balance',
+            },
           },
-        })
-
-        // Settlement for member to pay
-        await tx.settlement.create({
-          data: {
-            meetingId: meeting.id,
-            userId: newUser.id,
-            expectedAmount: previousAmount,
-            status: 'PENDING',
-            note: 'Previous pending balance',
-          },
-        })
+        },
       })
     }
 
@@ -140,41 +124,28 @@ export async function createMembersBulk(
       })
 
       if (item.previousAmount > 0) {
-        await prisma.$transaction(async (tx) => {
-          const meeting = await tx.meeting.create({
-            data: {
-              title: 'Previous Balance',
-              date: new Date(),
-              status: 'CALCULATED',
-              createdBy: admin.id,
-              notes: `Initial pending balance for ${item.name}`,
+        await prisma.meeting.create({
+          data: {
+            title: 'Previous Balance',
+            date: new Date(),
+            status: 'CALCULATED',
+            createdBy: admin.id,
+            notes: `Initial pending balance for ${item.name}`,
+            attendees: {
+              create: { userId: newUser.id },
             },
-          })
-
-          await tx.meetingAttendee.create({
-            data: {
-              meetingId: meeting.id,
-              userId: newUser.id,
+            expenses: {
+              create: { userId: admin.id, amount: item.previousAmount },
             },
-          })
-
-          await tx.expense.create({
-            data: {
-              meetingId: meeting.id,
-              userId: admin.id,
-              amount: item.previousAmount,
+            settlements: {
+              create: {
+                userId: newUser.id,
+                expectedAmount: item.previousAmount,
+                status: 'PENDING',
+                note: 'Previous pending balance',
+              },
             },
-          })
-
-          await tx.settlement.create({
-            data: {
-              meetingId: meeting.id,
-              userId: newUser.id,
-              expectedAmount: item.previousAmount,
-              status: 'PENDING',
-              note: 'Previous pending balance',
-            },
-          })
+          },
         })
       }
 
