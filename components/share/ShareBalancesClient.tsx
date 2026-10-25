@@ -99,7 +99,7 @@ export default function ShareBalancesClient({
   }
 
   function formatCurrency(amount: number): string {
-    return `Rs. ${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+    return `₹${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
   }
 
   function handleCopy(text: string, fieldName: string) {
@@ -222,18 +222,18 @@ export default function ShareBalancesClient({
                       )}
                       <Info className="w-3 h-3 text-ios-gray/60" />
                     </div>
-                    {member.netBalance > 0 ? (
-                      <p className="text-ios-caption1 text-green-500 flex items-center gap-0.5 mt-0.5">
+                    {member.netBalance > 0.009 ? (
+                      <p className="text-ios-caption1 text-emerald-600 font-semibold flex items-center gap-0.5 mt-0.5">
                         <ArrowUpRight className="w-3 h-3" />
-                        Give
+                        Gets back {formatCurrency(member.netBalance)}
                       </p>
-                    ) : member.netBalance < 0 ? (
-                      <p className="text-ios-caption1 text-red-500 flex items-center gap-0.5 mt-0.5">
+                    ) : member.netBalance < -0.009 ? (
+                      <p className="text-ios-caption1 text-rose-600 font-semibold flex items-center gap-0.5 mt-0.5">
                         <ArrowDownRight className="w-3 h-3" />
-                        Borrow
+                        Owes {formatCurrency(member.netBalance)}
                       </p>
                     ) : (
-                      <p className="text-ios-caption1 text-ios-gray mt-0.5">Settled ✓</p>
+                      <p className="text-ios-caption1 text-gray-400 mt-0.5">All settled ✓</p>
                     )}
                   </div>
                 </div>
@@ -242,19 +242,19 @@ export default function ShareBalancesClient({
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
                   <div className="text-right">
                     <p
-                      className={`text-ios-headline tabular-nums ${
-                        member.netBalance > 0
-                          ? 'text-green-500'
-                          : member.netBalance < 0
-                          ? 'text-red-500'
-                          : 'text-ios-gray'
+                      className={`text-ios-headline tabular-nums font-bold ${
+                        member.netBalance > 0.009
+                          ? 'text-emerald-600'
+                          : member.netBalance < -0.009
+                          ? 'text-rose-600'
+                          : 'text-gray-400'
                       }`}
                     >
-                      {member.netBalance > 0 ? '+' : member.netBalance < 0 ? '-' : ''}
+                      {member.netBalance > 0.009 ? '+' : member.netBalance < -0.009 ? '-' : ''}
                       {formatCurrency(member.netBalance)}
                     </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-ios-gray/50" />
+                  <ChevronRight className="w-4 h-4 text-gray-300" />
                 </div>
               </button>
             ))}

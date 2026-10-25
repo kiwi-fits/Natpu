@@ -11,6 +11,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "d1:migrate": "wrangler d1 execute natpu-db --remote --file=prisma/migrations/0002_add_groups.sql",
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "prisma studio",
     "test": "jest",

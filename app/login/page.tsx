@@ -131,8 +131,8 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-ios-gray text-ios-caption2 mt-6">
-          Powered by <strong className="font-semibold text-primary">Natpu</strong> • iOS Settlement Engine
+        <p className="text-center text-gray-400 text-xs mt-6">
+          Simple & Private Group Expenses
         </p>
       </div>
     </div>

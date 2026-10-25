@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS "groups" (
 CREATE UNIQUE INDEX IF NOT EXISTS "groups_slug_key" ON "groups"("slug");
 
 -- 2. Create default group for existing data
-INSERT INTO "groups" ("id", "name", "slug", "password", "createdAt", "updatedAt")
+INSERT OR IGNORE INTO "groups" ("id", "name", "slug", "password", "createdAt", "updatedAt")
 VALUES ('default-natpu-group', 'Natpu', 'natpu', '123456789Natpu', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- 3. Add groupId to users

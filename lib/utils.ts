@@ -40,8 +40,8 @@ export function getInitials(name: string): string {
 }
 
 export function formatCurrencyDisplay(amount: number | string | null | undefined): string {
-  if (amount === null || amount === undefined) return 'Rs. 0.00'
+  if (amount === null || amount === undefined) return '₹0.00'
   const n = typeof amount === 'string' ? parseFloat(amount) : amount
-  if (isNaN(n)) return 'Rs. 0.00'
-  return `Rs. ${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+  if (isNaN(n)) return '₹0.00'
+  return `₹${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
 }

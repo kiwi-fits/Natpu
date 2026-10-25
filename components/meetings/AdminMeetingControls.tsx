@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { finalizeMeeting } from '@/actions/meetings'
 import { toast } from 'sonner'
-import { AlertTriangle, CheckCircle, Lock } from 'lucide-react'
+import { Calculator, CheckCircle2, Lock } from 'lucide-react'
 import { MeetingStatus } from '@/lib/types/database'
 
 type Props = {
@@ -25,7 +25,7 @@ export default function AdminMeetingControls({ meeting }: Props) {
     startTransition(async () => {
       const result = await finalizeMeeting(meeting.id)
       if (result.success) {
-        toast.success('Meeting ended! Balances updated.')
+        toast.success('Meeting split calculated and locked successfully!')
         setShowFinalizeConfirm(false)
       } else {
         toast.error(result.error)
@@ -35,15 +35,15 @@ export default function AdminMeetingControls({ meeting }: Props) {
 
   return (
     <div className="mb-4">
-      <p className="section-header">Admin Controls</p>
+      <p className="section-header">Admin Actions</p>
 
-      <div className="card p-4 border-2 border-dashed border-gray-200 space-y-3">
+      <div className="card p-4 border border-gray-200/80 shadow-xs space-y-3">
         {meeting.status === 'OPEN' ? (
           <>
-            <div className="flex items-start gap-3 bg-warning-light rounded-xl p-3">
-              <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-warning-foreground">
-                After ending the meeting, spending will be locked and balances updated.
+            <div className="flex items-start gap-3 bg-blue-50/70 border border-blue-100 rounded-xl p-3">
+              <Calculator className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-800 leading-relaxed">
+                When everyone is done entering spending, finalize to calculate everyone's fair share and settlement amounts.
               </p>
             </div>
             <button
@@ -52,48 +52,51 @@ export default function AdminMeetingControls({ meeting }: Props) {
               className="btn-primary w-full flex items-center justify-center gap-2"
               id="finalize-meeting-btn"
             >
-              <Lock className="w-4 h-4" />
-              End Meeting
+              <Calculator className="w-4 h-4" />
+              Calculate Split & Lock
             </button>
           </>
         ) : (
-          <div className="flex items-center gap-2 justify-center py-2">
-            <CheckCircle className="w-5 h-5 text-success" />
-            <p className="font-semibold text-success">Meeting ended</p>
+          <div className="flex items-center gap-2 justify-center py-2 text-emerald-700 bg-emerald-50 rounded-xl border border-emerald-100">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+            <p className="font-semibold text-sm">Meeting split calculated & finalized</p>
           </div>
         )}
       </div>
 
-      {/* End Meeting Confirm Modal */}
+      {/* Confirm Modal */}
       {showFinalizeConfirm && (
         <div
-          className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in p-0 sm:p-4"
+          className="modal-overlay"
           onClick={e => e.target === e.currentTarget && setShowFinalizeConfirm(false)}
         >
-          <div className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-3xl px-6 pt-6 pb-9 sm:pb-6 shadow-2xl animate-slide-up">
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4 sm:hidden" />
+          <div className="modal-content animate-slide-up">
             <div className="text-center mb-6">
-              <div className="w-14 h-14 bg-ios-blue/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <Lock className="w-6 h-6 text-ios-blue" />
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Calculator className="w-7 h-7" />
               </div>
-              <h3 className="text-ios-title3 font-bold text-primary tracking-tight">End Meeting?</h3>
-              <p className="text-ios-subhead text-ios-gray mt-2 px-2 leading-relaxed">
-                This will lock spending for all attendees and calculate settlement amounts.
+              <h3 className="text-xl font-bold text-gray-900">Calculate & Lock Split?</h3>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+                This will calculate each person's fair share for <strong>{meeting.title}</strong> and update their member balances.
               </p>
             </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowFinalizeConfirm(false)}
-                className="btn-secondary flex-1 py-3.5 rounded-[14px]"
+                className="btn-secondary flex-1 py-3"
               >
                 Cancel
               </button>
               <button
                 onClick={handleFinalize}
                 disabled={isPending}
-                className="btn-primary flex-1 py-3.5 rounded-[14px] flex items-center justify-center gap-2"
+                className="btn-primary flex-1 py-3 flex items-center justify-center gap-2"
               >
-                {isPending ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'End'}
+                {isPending ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Confirm & Split'
+                )}
               </button>
             </div>
           </div>

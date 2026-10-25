@@ -221,8 +221,8 @@ export default function NewMeetingForm({ members }: { members: Member[] }) {
             </>
           ) : (
             <>
-              <Plus className="w-4 h-4" />
-              Create Meeting
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              {selectedIds.size > 0 ? `Create Meeting (${selectedIds.size} friends)` : 'Create Meeting'}
             </>
           )}
         </button>

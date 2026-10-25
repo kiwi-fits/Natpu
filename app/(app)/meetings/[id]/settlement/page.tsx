@@ -65,35 +65,35 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
       </div>
 
       {/* Summary */}
-      <div className="card p-5 mb-5">
+      <div className="card p-5 mb-5 shadow-xs">
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Expected</p>
-            <p className="font-bold text-primary text-sm">{formatCurrencyDisplay(totalExpected)}</p>
+            <p className="text-xs text-gray-500 mb-1">Total Due</p>
+            <p className="font-extrabold text-gray-900 text-sm sm:text-base">{formatCurrencyDisplay(totalExpected)}</p>
           </div>
-          <div className="text-center border-x border-border">
+          <div className="text-center border-x border-gray-100">
             <p className="text-xs text-gray-500 mb-1">Collected</p>
-            <p className="font-bold text-success text-sm">{formatCurrencyDisplay(totalSettled)}</p>
+            <p className="font-extrabold text-emerald-600 text-sm sm:text-base">{formatCurrencyDisplay(totalSettled)}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500 mb-1">Pending</p>
-            <p className={cn('font-bold text-sm', totalPending > 0 ? 'text-danger' : 'text-success')}>
+            <p className="text-xs text-gray-500 mb-1">Still Pending</p>
+            <p className={cn('font-extrabold text-sm sm:text-base', totalPending > 0 ? 'text-rose-600' : 'text-emerald-600')}>
               {formatCurrencyDisplay(totalPending)}
             </p>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
           <div
             className={cn(
-              'h-full rounded-full transition-all',
-              settledCount === meeting.settlements.length ? 'bg-success' : 'bg-accent'
+              'h-full rounded-full transition-all duration-500',
+              settledCount === meeting.settlements.length ? 'bg-emerald-500' : 'bg-blue-600'
             )}
             style={{ width: `${meeting.settlements.length > 0 ? (settledCount / meeting.settlements.length) * 100 : 0}%` }}
           />
         </div>
-        <p className="text-xs text-gray-400 mt-2 text-center">
+        <p className="text-[11px] text-gray-400 mt-2 text-center font-medium">
           {settledCount} of {meeting.settlements.length} payments confirmed
         </p>
       </div>

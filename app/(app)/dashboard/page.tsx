@@ -136,40 +136,41 @@ export default async function DashboardPage() {
     <div className="page-container pt-6 pb-2">
 
       {/* ─── iOS Navigation Bar ─── */}
-      <div className="flex items-center justify-between mb-8">
+      {/* ─── Navigation & User Greeting ─── */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-ios-title2 text-primary">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
             {getGreeting(user.name.split(' ')[0])}
           </h1>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="inline-flex items-center bg-ios-blue/10 text-ios-blue text-[11px] font-semibold px-2 py-0.5 rounded-full">
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="inline-flex items-center bg-blue-50 text-blue-700 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-blue-100">
               Admin
             </span>
-            <span className="inline-flex items-center bg-purple-500/10 text-purple-600 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center bg-purple-50 text-purple-700 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-purple-100">
               {user.groupName}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <NotificationBell count={unreadCount} notifications={JSON.parse(JSON.stringify(allNotifications))} userId={user.id} />
           <LogoutButton />
         </div>
       </div>
 
-      {/* ─── Meeting Overview — iOS Card Style ─── */}
+      {/* ─── Group Overview Card ─── */}
       <div className="mb-6 animate-fade-in">
-        <div className="gradient-header rounded-2xl p-5">
-          <p className="text-white/50 text-[11px] font-semibold uppercase tracking-wider mb-3">Meeting Overview</p>
+        <div className="gradient-header rounded-3xl p-5 shadow-lg">
+          <p className="text-white/60 text-[11px] font-bold uppercase tracking-wider mb-3">Group Spend Overview</p>
           <div className="grid grid-cols-2 gap-4 items-baseline">
             <div className="min-w-0">
-              <p className="text-white/50 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Total Spend</p>
-              <p className="text-white font-bold text-base sm:text-xl tabular-nums truncate">
+              <p className="text-white/60 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Total Spent</p>
+              <p className="text-white font-bold text-lg sm:text-2xl tabular-nums truncate">
                 {formatCurrencyDisplay(totalMeetingSpend)}
               </p>
             </div>
             <div className="min-w-0">
-              <p className="text-white/50 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Last Spend</p>
-              <p className="text-white font-bold text-base sm:text-xl tabular-nums truncate">
+              <p className="text-white/60 text-[11px] font-medium uppercase tracking-wide mb-1 truncate">Latest Meeting</p>
+              <p className="text-white font-bold text-lg sm:text-2xl tabular-nums truncate">
                 {formatCurrencyDisplay(lastMeetingSpend)}
               </p>
             </div>
@@ -178,11 +179,11 @@ export default async function DashboardPage() {
           <div className="mt-5 flex items-center gap-3">
             <Link
               href="/meetings/new"
-              className="flex-1 h-12 flex items-center justify-center gap-2 bg-white text-primary rounded-[14px] font-bold text-sm transition-all active:scale-[0.97]"
+              className="flex-1 h-12 flex items-center justify-center gap-2 bg-white text-gray-900 hover:bg-gray-50 rounded-[14px] font-bold text-sm transition-all active:scale-[0.97] shadow-sm"
               id="new-meeting-btn"
             >
               <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
-              New
+              New Meeting
             </Link>
             <WhatsAppShareButton
               totalSpend={totalMeetingSpend}

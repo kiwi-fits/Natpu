@@ -57,7 +57,7 @@ export default function SpendingModal({
       }
 
       if (result.success) {
-        toast.success(`Spending saved: Rs. ${parseFloat(val).toFixed(2)}`)
+        toast.success(`Spending saved: ₹${parseFloat(val).toFixed(2)}`)
         setOpen(false)
       } else {
         toast.error(result.error)
@@ -115,11 +115,11 @@ export default function SpendingModal({
               {/* Amount Input Section */}
               <div>
                 <label className="label">
-                  HOW MUCH DID {memberName ? memberName.toUpperCase() : 'YOU'} SPEND?
+                  Amount spent by {memberName || 'you'}
                 </label>
                 <div className="relative mt-1">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-ios-gray font-bold text-base">
-                    Rs.
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 font-bold text-xl">
+                    ₹
                   </div>
                   <input
                     type="number"
@@ -128,19 +128,19 @@ export default function SpendingModal({
                     placeholder="0.00"
                     min="0"
                     step="0.01"
-                    className="input pl-14 text-2xl font-bold font-mono h-14"
+                    className="input pl-10 text-2xl font-bold font-mono h-14"
                     autoFocus
                     id="spending-amount-input"
                   />
                 </div>
-                <p className="text-[12px] text-ios-gray mt-1.5 px-1">
+                <p className="text-[12px] text-gray-500 mt-1.5 px-1">
                   Enter 0 if {memberName ?? 'you'} didn't pay anything.
                 </p>
               </div>
 
               {/* Quick Amounts Section */}
               <div>
-                <p className="label mb-2">QUICK AMOUNTS</p>
+                <p className="label mb-2">Quick amounts</p>
                 <div className="grid grid-cols-3 gap-2.5">
                   {['500', '1000', '1500', '2000', '2500', '3000'].map(q => (
                     <button
@@ -150,11 +150,11 @@ export default function SpendingModal({
                       className={cn(
                         'py-2.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center',
                         amount === q
-                          ? 'bg-ios-blue text-white border-ios-blue shadow-sm'
-                          : 'bg-ios-lightGray text-primary border-transparent hover:bg-gray-200'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-gray-100 text-gray-800 border-transparent hover:bg-gray-200'
                       )}
                     >
-                      {q}
+                      ₹{parseInt(q).toLocaleString()}
                     </button>
                   ))}
                 </div>

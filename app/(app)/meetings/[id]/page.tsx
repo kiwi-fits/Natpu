@@ -1,9 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth/helpers'
 import { prisma } from '@/lib/db'
-import { formatDate, formatDateTime, formatCurrencyDisplay, getInitials } from '@/lib/utils'
+import { formatDate, formatCurrencyDisplay, getInitials } from '@/lib/utils'
 import { calculateMeetingSummary } from '@/lib/calculations/meeting'
-import Decimal from 'decimal.js'
 import Link from 'next/link'
 import {
   ArrowLeft, MapPin, Calendar, Users, ChevronRight,
@@ -44,10 +43,7 @@ export default async function MeetingDetailPage({
 
   if (!meeting || meeting.groupId !== user.groupId) notFound()
 
-  const isAttendee = meeting.attendees.some(a => a.userId === user.id)
   const isAdmin = user.role === 'ADMIN'
-  const myExpense = meeting.expenses.find(e => e.userId === user.id)
-  const mySettlement = meeting.settlements.find(s => s.userId === user.id)
 
   // Build expense inputs for calculation
   const expenseInputs = meeting.expenses.map(e => ({
@@ -62,82 +58,133 @@ export default async function MeetingDetailPage({
     0
   )
 
-  const attendeesWithNoExpense = meeting.attendees.filter(
-    a => !meeting.expenses.find(e => e.userId === a.userId)
-  ).length
-  const attendeesEnteredExpense = meeting.attendees.length - attendeesWithNoExpense
-
-  // Bank details for payment info
-  const bankDetails = await prisma.bankDetails.findFirst({
-    where: { groupId: user.groupId },
-  })
+  const attendeeCount = meeting.attendees.length
+  const fairSharePerPerson = attendeeCount > 0 ? totalExpense / attendeeCount : 0
 
   return (
-    <div className="page-container pt-4">
+    <div className="page-container pt-4 pb-20">
       {/* Back + Header */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-5">
         <Link
           href="/meetings"
           className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+          aria-label="Back to meetings"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-primary leading-tight truncate">{meeting.title}</h1>
+          <h1 className="text-xl font-extrabold text-gray-900 leading-tight truncate">
+            {meeting.title}
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">{formatDate(meeting.date)}</p>
         </div>
         <MeetingStatusBadge status={meeting.status as MeetingStatus} />
       </div>
 
-      {/* Meeting Info Card */}
-      <div className="card p-4 mb-4 space-y-2">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <span>{formatDate(meeting.date)}</span>
+      {/* Bill & Fair Share Overview */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="card p-4">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Bill</p>
+          <p className="text-xl font-extrabold text-gray-900 tabular-nums">
+            {formatCurrencyDisplay(totalExpense)}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-0.5">{attendeeCount} friends</p>
         </div>
-        {meeting.location && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4 text-gray-400" />
-            <span>{meeting.location}</span>
-          </div>
-        )}
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Users className="w-4 h-4 text-gray-400" />
-          <span>{meeting.attendees.length} attendees</span>
+        <div className="card p-4">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Per Person</p>
+          <p className="text-xl font-extrabold text-blue-600 tabular-nums">
+            {formatCurrencyDisplay(fairSharePerPerson)}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-0.5">equal split</p>
         </div>
-        {meeting.notes && (
-          <p className="text-sm text-gray-500 pt-1 border-t border-border">{meeting.notes}</p>
-        )}
       </div>
 
+      {/* Settlement Statement Quick Link (if calculated or settled) */}
+      {(meeting.status === 'CALCULATED' || meeting.status === 'SETTLED') && (
+        <Link
+          href={`/meetings/${meeting.id}/settlement`}
+          className="card p-3.5 mb-5 flex items-center justify-between hover:border-blue-300 transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Receipt className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                View Settlement Statement
+              </p>
+              <p className="text-xs text-gray-500">Who owes who in this meeting</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+        </Link>
+      )}
 
+      {/* Attendees & Spending */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2.5 px-1">
+          <p className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">
+            Who Paid What
+          </p>
+          {meeting.status === 'OPEN' && (
+            <span className="text-[11px] text-gray-400">Tap pencil to edit</span>
+          )}
+        </div>
 
-
-
-      {/* Participant Cards */}
-      <div className="mb-4">
-        <p className="section-header">Participants</p>
-        <div className="space-y-2">
-          {meeting.attendees.map(attendee => {
+        <div className="ios-list shadow-sm">
+          {meeting.attendees.map((attendee, index) => {
             const expense = meeting.expenses.find(e => e.userId === attendee.userId)
+            const spent = expense ? parseFloat(expense.amount.toString()) : 0
             const participantSummary = summary.participants.find(p => p.userId === attendee.userId)
-            const settlement = meeting.settlements.find(s => s.userId === attendee.userId)
+            const diff = spent - fairSharePerPerson
 
             return (
-              <div key={attendee.userId} className="card p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+              <div
+                key={attendee.userId}
+                className={`p-4 flex items-center justify-between ${
+                  index !== 0 ? 'border-t border-black/[0.05]' : ''
+                }`}
+              >
+                {/* Left: Avatar & Name */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-700 flex-shrink-0">
                     {getInitials(attendee.user.name)}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-primary text-sm">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
                       {attendee.user.name}
-                      {attendee.userId === user.id && <span className="text-xs text-gray-400 ml-1">(you)</span>}
+                      {attendee.userId === user.id && (
+                        <span className="text-[11px] font-normal text-gray-400 ml-1">(you)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Paid: <span className={spent > 0 ? 'font-bold text-gray-900' : 'text-gray-400'}>{formatCurrencyDisplay(spent)}</span>
                     </p>
                   </div>
+                </div>
+
+                {/* Right: Net Difference or Edit Button */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {meeting.status !== 'OPEN' && (
+                    <div className="text-right">
+                      {diff > 0.01 ? (
+                        <p className="text-xs font-bold text-emerald-600">
+                          + Gets back {formatCurrencyDisplay(diff)}
+                        </p>
+                      ) : diff < -0.01 ? (
+                        <p className="text-xs font-bold text-rose-600">
+                          - Owes {formatCurrencyDisplay(Math.abs(diff))}
+                        </p>
+                      ) : (
+                        <p className="text-xs font-medium text-gray-400">Settled</p>
+                      )}
+                    </div>
+                  )}
+
                   {(isAdmin || attendee.userId === user.id) && meeting.status === 'OPEN' && (
                     <SpendingModal
                       meetingId={meeting.id}
-                      currentAmount={expense?.amount?.toString() ?? '0'}
+                      currentAmount={spent.toString()}
                       meetingTitle={meeting.title}
                       isAdmin={isAdmin}
                       userId={attendee.userId}
@@ -146,81 +193,11 @@ export default async function MeetingDetailPage({
                     />
                   )}
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-xs text-gray-500">Paid</p>
-                    <p className={cn(
-                      "font-semibold",
-                      expense && parseFloat(expense.amount.toString()) > 0 ? "text-green-600 font-bold" : "text-primary"
-                    )}>
-                      {formatCurrencyDisplay(expense?.amount?.toString() ?? '0')}
-                    </p>
-                  </div>
-                  {participantSummary && (
-                    <div>
-                      <p className="text-xs text-gray-500">Share</p>
-                      <p className="font-semibold text-primary">
-                        {formatCurrencyDisplay(participantSummary.equalShare.toString())}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {participantSummary && (meeting.status === 'CALCULATED' || meeting.status === 'SETTLED') && (
-                  <div className={cn(
-                    'mt-3 pt-3 border-t border-border flex items-center justify-between',
-                  )}>
-                    {participantSummary.status === 'RECEIVER' && (
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-success" />
-                        <div>
-                          <p className="text-xs text-gray-500">Receives</p>
-                          <p className="font-bold text-success">
-                            {formatCurrencyDisplay(participantSummary.difference.toString())}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {participantSummary.status === 'PAYER' && (
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="w-4 h-4 text-danger" />
-                        <div>
-                          <p className="text-xs text-gray-500">Pays</p>
-                          <p className="font-bold text-danger">
-                            {formatCurrencyDisplay(participantSummary.difference.abs().toString())}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {participantSummary.status === 'SETTLED' && (
-                      <div className="flex items-center gap-2">
-                        <Minus className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs text-gray-500">Status</p>
-                          <p className="font-bold text-gray-500">Settled</p>
-                        </div>
-                      </div>
-                    )}
-                    {settlement && (
-                      <span className={cn(
-                        'badge',
-                        settlement.status === 'SETTLED' ? 'badge-settled' :
-                        settlement.status === 'SUBMITTED' ? 'badge-submitted' :
-                        'badge-pending'
-                      )}>
-                        {settlement.status}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             )
           })}
         </div>
       </div>
-
-
 
       {/* Admin Controls */}
       {isAdmin && (

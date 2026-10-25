@@ -363,12 +363,12 @@ export default function MembersClient({
                   />
                 </div>
 
-                {/* Previous Amount to Pay Field */}
+                {/* Starting Balance / Debt Field */}
                 <div>
-                  <label className="label">Previous Amount to Pay</label>
+                  <label className="label">Starting Debt (Optional)</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 font-semibold text-sm">
-                      Rs.
+                      ₹
                     </div>
                     <input
                       type="number"
@@ -377,11 +377,11 @@ export default function MembersClient({
                       value={previousAmount}
                       onChange={e => setPreviousAmount(e.target.value)}
                       placeholder="0.00"
-                      className="input pl-11 font-mono"
+                      className="input pl-8 font-mono"
                     />
                   </div>
-                  <p className="text-[11px] text-ios-gray mt-1 px-1">
-                    Optional: If the member owes a previous pending amount.
+                  <p className="text-[11px] text-gray-500 mt-1 px-1">
+                    Enter an amount if this member owes money from past meetings.
                   </p>
                 </div>
 
@@ -443,7 +443,7 @@ export default function MembersClient({
                       />
                       <div className="relative w-28 flex-shrink-0">
                         <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400 font-semibold text-xs">
-                          Rs.
+                          ₹
                         </div>
                         <input
                           type="number"

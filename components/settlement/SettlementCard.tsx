@@ -122,7 +122,7 @@ export default function SettlementCard({
             {difference !== null && difference !== 0 && (
               <div className="flex items-center justify-between text-sm border-t border-border pt-1">
                 <span className="text-gray-500">
-                  {difference > 0 ? 'Extra Given (To Receive)' : 'Shortage'}
+                  {difference > 0 ? 'Extra Paid' : 'Remaining Due'}
                 </span>
                 <span className={cn('font-semibold', difference < 0 ? 'text-danger' : 'text-success')}>
                   {difference > 0 ? '+' : ''}{formatCurrencyDisplay(difference)}
@@ -173,7 +173,7 @@ export default function SettlementCard({
               id={`mark-settled-${settlement.id}`}
             >
               <CheckCircle className="w-3.5 h-3.5" />
-              Mark Settled
+              Confirm Payment
             </button>
           )}
         </div>
