@@ -4,7 +4,7 @@
 	"name": "natpu",
 	"account_id": "2ea4e508d1b10038499254ce93a9e40c",
 	"build": {
-		"command": "npx opennextjs-cloudflare build"
+		"command": "npx opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion"
 	},
 	"compatibility_date": "2026-09-17",
 	"compatibility_flags": [
