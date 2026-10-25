@@ -21,7 +21,7 @@ export async function upsertExpense(formData: FormData): Promise<ActionResult> {
 
     const { meetingId, amount } = parsed.data
 
-    // Check meeting exists and is OPEN
+    // Check meeting exists, is OPEN, and belongs to same group
     const meeting = await prisma.meeting.findUnique({
       where: { id: meetingId },
       include: {
@@ -30,6 +30,7 @@ export async function upsertExpense(formData: FormData): Promise<ActionResult> {
     })
 
     if (!meeting) return { success: false, error: 'Meeting not found.' }
+    if (meeting.groupId !== user.groupId) return { success: false, error: 'Meeting not found.' }
     if (meeting.status !== 'OPEN') {
       return { success: false, error: 'This meeting has been finalized. Expenses can no longer be changed.' }
     }
@@ -59,6 +60,7 @@ export async function upsertExpense(formData: FormData): Promise<ActionResult> {
       meetingId,
       oldValue: existingExpense?.amount?.toString(),
       newValue: amount,
+      groupId: user.groupId,
     })
 
     revalidatePath(`/meetings/${meetingId}`)
@@ -86,6 +88,7 @@ export async function adminUpdateExpense(
 
     const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } })
     if (!meeting) return { success: false, error: 'Meeting not found.' }
+    if (meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
     if (meeting.status !== 'OPEN') {
       return { success: false, error: 'Meeting is finalized. Reopen it first.' }
     }
@@ -115,6 +118,7 @@ export async function adminUpdateExpense(
       targetUserId: userId,
       oldValue: existing?.amount?.toString(),
       newValue: parsed.data.amount,
+      groupId: admin.groupId,
     })
 
     revalidatePath(`/meetings/${meetingId}`)

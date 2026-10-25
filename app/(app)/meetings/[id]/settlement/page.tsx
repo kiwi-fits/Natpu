@@ -28,10 +28,12 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
     },
   })
 
-  if (!meeting) notFound()
+  if (!meeting || meeting.groupId !== user.groupId) notFound()
   if (meeting.status === 'OPEN') redirect(`/meetings/${id}`)
 
-  const bankDetails = await prisma.bankDetails.findFirst()
+  const bankDetails = await prisma.bankDetails.findFirst({
+    where: { groupId: user.groupId },
+  })
 
   const totalExpected = meeting.settlements.reduce(
     (sum, s) => sum + parseFloat(s.expectedAmount.toString()), 0

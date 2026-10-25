@@ -13,6 +13,7 @@ export default async function MeetingsPage() {
   if (!user) return null
 
   const meetings = await prisma.meeting.findMany({
+    where: { groupId: user.groupId },
     include: {
       attendees: { include: { user: { select: { name: true } } } },
       expenses: true,

@@ -7,6 +7,7 @@ export async function createAuditLog({
   targetUserId,
   oldValue,
   newValue,
+  groupId,
 }: {
   userId: string
   action: string
@@ -14,6 +15,7 @@ export async function createAuditLog({
   targetUserId?: string
   oldValue?: string
   newValue?: string
+  groupId?: string
 }) {
   try {
     await prisma.auditLog.create({
@@ -24,6 +26,7 @@ export async function createAuditLog({
         targetUserId,
         oldValue,
         newValue,
+        groupId,
       },
     })
   } catch (err) {

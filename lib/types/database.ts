@@ -23,3 +23,11 @@ export const PaymentStatus = {
   SUBMITTED: 'SUBMITTED',
   SETTLED: 'SETTLED',
 } as const
+
+export type Group = {
+  id: string
+  name: string
+  slug: string
+  createdAt: Date
+  updatedAt: Date
+}

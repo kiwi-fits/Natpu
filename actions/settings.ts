@@ -23,8 +23,10 @@ export async function updateBankDetails(formData: FormData): Promise<ActionResul
 
     const { bankName, accountName, accountNumber, branch } = parsed.data
 
-    // Upsert bank details (only one record)
-    const existing = await prisma.bankDetails.findFirst()
+    // Upsert bank details (one record per group)
+    const existing = await prisma.bankDetails.findFirst({
+      where: { groupId: admin.groupId },
+    })
     if (existing) {
       await prisma.bankDetails.update({
         where: { id: existing.id },
@@ -32,13 +34,14 @@ export async function updateBankDetails(formData: FormData): Promise<ActionResul
       })
     } else {
       await prisma.bankDetails.create({
-        data: { bankName, accountName, accountNumber, branch },
+        data: { bankName, accountName, accountNumber, branch, groupId: admin.groupId },
       })
     }
 
     await createAuditLog({
       userId: admin.id,
       action: 'UPDATE_BANK_DETAILS',
+      groupId: admin.groupId,
     })
 
     revalidatePath('/settings')

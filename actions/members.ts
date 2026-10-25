@@ -28,13 +28,14 @@ export async function createMember(formData: FormData): Promise<ActionResult> {
     const uniqueSlug = Math.random().toString(36).substring(2, 7)
     const email = `${cleanName}.${uniqueSlug}@splitmeet.local`
 
-    // Create user in DB
+    // Create user in DB scoped to admin's group
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         role: 'MEMBER',
         status: 'ACTIVE',
+        groupId: admin.groupId,
       },
     })
 
@@ -46,6 +47,7 @@ export async function createMember(formData: FormData): Promise<ActionResult> {
           date: new Date(),
           status: 'CALCULATED',
           createdBy: admin.id,
+          groupId: admin.groupId,
           notes: `Initial pending balance for ${name}`,
           attendees: {
             create: { userId: newUser.id },
@@ -70,6 +72,7 @@ export async function createMember(formData: FormData): Promise<ActionResult> {
       action: 'CREATE_MEMBER',
       targetUserId: newUser.id,
       newValue: name,
+      groupId: admin.groupId,
     })
 
     revalidatePath('/members')
@@ -120,6 +123,7 @@ export async function createMembersBulk(
           email,
           role: 'MEMBER',
           status: 'ACTIVE',
+          groupId: admin.groupId,
         },
       })
 
@@ -130,6 +134,7 @@ export async function createMembersBulk(
             date: new Date(),
             status: 'CALCULATED',
             createdBy: admin.id,
+            groupId: admin.groupId,
             notes: `Initial pending balance for ${item.name}`,
             attendees: {
               create: { userId: newUser.id },
@@ -154,6 +159,7 @@ export async function createMembersBulk(
         action: 'CREATE_MEMBER_BULK',
         targetUserId: newUser.id,
         newValue: item.name,
+        groupId: admin.groupId,
       })
 
       createdCount++
@@ -187,6 +193,10 @@ export async function updateMember(formData: FormData): Promise<ActionResult> {
     const parsed = updateMemberSchema.safeParse(raw)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
 
+    // Verify user belongs to same group
+    const user = await prisma.user.findUnique({ where: { id: parsed.data.id } })
+    if (!user || user.groupId !== admin.groupId) return { success: false, error: 'Member not found.' }
+
     await prisma.user.update({
       where: { id: parsed.data.id },
       data: { name: parsed.data.name, phone: parsed.data.phone },
@@ -197,6 +207,7 @@ export async function updateMember(formData: FormData): Promise<ActionResult> {
       action: 'UPDATE_MEMBER',
       targetUserId: parsed.data.id,
       newValue: parsed.data.name,
+      groupId: admin.groupId,
     })
 
     revalidatePath('/members')
@@ -221,6 +232,10 @@ export async function deactivateMember(userId: string): Promise<ActionResult> {
       return { success: false, error: 'You cannot deactivate yourself.' }
     }
 
+    // Verify user belongs to same group
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user || user.groupId !== admin.groupId) return { success: false, error: 'Member not found.' }
+
     await prisma.user.update({
       where: { id: userId },
       data: { status: 'INACTIVE' },
@@ -230,6 +245,7 @@ export async function deactivateMember(userId: string): Promise<ActionResult> {
       userId: admin.id,
       action: 'DEACTIVATE_MEMBER',
       targetUserId: userId,
+      groupId: admin.groupId,
     })
 
     revalidatePath('/members')
@@ -245,7 +261,11 @@ export async function deactivateMember(userId: string): Promise<ActionResult> {
 
 export async function reactivateMember(userId: string): Promise<ActionResult> {
   try {
-    await requireAdmin()
+    const admin = await requireAdmin()
+
+    // Verify user belongs to same group
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user || user.groupId !== admin.groupId) return { success: false, error: 'Member not found.' }
 
     await prisma.user.update({
       where: { id: userId },

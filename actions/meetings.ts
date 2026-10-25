@@ -31,9 +31,9 @@ export async function createMeeting(formData: FormData): Promise<ActionResult<{ 
 
     const { title, date, location, notes, attendeeIds } = parsed.data
 
-    // Validate all attendeeIds are active users
+    // Validate all attendeeIds are active users in the same group
     const users = await prisma.user.findMany({
-      where: { id: { in: attendeeIds }, status: 'ACTIVE' },
+      where: { id: { in: attendeeIds }, status: 'ACTIVE', groupId: admin.groupId },
     })
     if (users.length !== attendeeIds.length) {
       return { success: false, error: 'One or more selected attendees are invalid.' }
@@ -50,6 +50,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult<{ 
         notes,
         status: 'OPEN',
         createdBy: admin.id,
+        groupId: admin.groupId,
         attendees: {
           create: attendeeIds.map(userId => ({ userId })),
         },
@@ -64,6 +65,7 @@ export async function createMeeting(formData: FormData): Promise<ActionResult<{ 
       action: 'CREATE_MEETING',
       meetingId: meeting.id,
       newValue: title,
+      groupId: admin.groupId,
     })
 
     revalidatePath('/dashboard')
@@ -99,6 +101,7 @@ export async function updateMeeting(formData: FormData): Promise<ActionResult> {
 
     const meeting = await prisma.meeting.findUnique({ where: { id: parsed.data.id } })
     if (!meeting) return { success: false, error: 'Meeting not found.' }
+    if (meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
     if (meeting.status === 'SETTLED') return { success: false, error: 'Cannot edit a settled meeting.' }
 
     await prisma.meeting.update({
@@ -111,7 +114,7 @@ export async function updateMeeting(formData: FormData): Promise<ActionResult> {
       },
     })
 
-    await createAuditLog({ userId: admin.id, action: 'UPDATE_MEETING', meetingId: parsed.data.id })
+    await createAuditLog({ userId: admin.id, action: 'UPDATE_MEETING', meetingId: parsed.data.id, groupId: admin.groupId })
     revalidatePath(`/meetings/${parsed.data.id}`)
     revalidatePath('/meetings')
     return { success: true, data: undefined }
@@ -127,8 +130,12 @@ export async function updateMeeting(formData: FormData): Promise<ActionResult> {
 export async function deleteMeeting(meetingId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin()
+
+    const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } })
+    if (!meeting || meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
+
     await prisma.meeting.delete({ where: { id: meetingId } })
-    await createAuditLog({ userId: admin.id, action: 'DELETE_MEETING', meetingId })
+    await createAuditLog({ userId: admin.id, action: 'DELETE_MEETING', meetingId, groupId: admin.groupId })
     revalidatePath('/meetings')
     revalidatePath('/dashboard')
     return { success: true, data: undefined }
@@ -160,6 +167,7 @@ export async function updateAttendance(formData: FormData): Promise<ActionResult
       include: { expenses: true },
     })
     if (!meeting) return { success: false, error: 'Meeting not found.' }
+    if (meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
     if (meeting.status === 'SETTLED') return { success: false, error: 'Cannot edit a settled meeting.' }
 
     // Warn if expenses exist (via client - server just proceeds)
@@ -187,7 +195,7 @@ export async function updateAttendance(formData: FormData): Promise<ActionResult
       data: { status: 'OPEN' },
     })
 
-    await createAuditLog({ userId: admin.id, action: 'UPDATE_ATTENDANCE', meetingId })
+    await createAuditLog({ userId: admin.id, action: 'UPDATE_ATTENDANCE', meetingId, groupId: admin.groupId })
     revalidatePath(`/meetings/${meetingId}`)
     return { success: true, data: undefined }
   } catch (err) {
@@ -212,6 +220,7 @@ export async function finalizeMeeting(meetingId: string): Promise<ActionResult> 
     })
 
     if (!meeting) return { success: false, error: 'Meeting not found.' }
+    if (meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
     if (meeting.status !== 'OPEN') return { success: false, error: 'Meeting is not in OPEN status.' }
     if (meeting.attendees.length === 0) return { success: false, error: 'No attendees found.' }
 
@@ -261,7 +270,7 @@ export async function finalizeMeeting(meetingId: string): Promise<ActionResult> 
       }
     }
 
-    await createAuditLog({ userId: admin.id, action: 'FINALIZE_MEETING', meetingId })
+    await createAuditLog({ userId: admin.id, action: 'FINALIZE_MEETING', meetingId, groupId: admin.groupId })
     revalidatePath(`/meetings/${meetingId}`)
     revalidatePath('/dashboard')
     return { success: true, data: undefined }
@@ -279,13 +288,16 @@ export async function reopenMeeting(meetingId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin()
 
+    const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } })
+    if (!meeting || meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
+
     await prisma.settlement.deleteMany({ where: { meetingId } })
     await prisma.meeting.update({
       where: { id: meetingId },
       data: { status: 'OPEN' },
     })
 
-    await createAuditLog({ userId: admin.id, action: 'REOPEN_MEETING', meetingId })
+    await createAuditLog({ userId: admin.id, action: 'REOPEN_MEETING', meetingId, groupId: admin.groupId })
     revalidatePath(`/meetings/${meetingId}`)
     return { success: true, data: undefined }
   } catch (err) {
@@ -300,6 +312,9 @@ export async function reopenMeeting(meetingId: string): Promise<ActionResult> {
 export async function completeMeeting(meetingId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin()
+
+    const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } })
+    if (!meeting || meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
 
     // Check all settlements are done
     const pendingSettlements = await prisma.settlement.count({
@@ -317,6 +332,7 @@ export async function completeMeeting(meetingId: string): Promise<ActionResult> 
       action: 'COMPLETE_MEETING',
       meetingId,
       newValue: pendingSettlements > 0 ? `${pendingSettlements} settlements still pending` : 'all settled',
+      groupId: admin.groupId,
     })
 
     revalidatePath(`/meetings/${meetingId}`)

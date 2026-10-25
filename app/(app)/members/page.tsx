@@ -13,6 +13,7 @@ export default async function MembersPage() {
   if (!user) redirect('/login')
 
   const members = await prisma.user.findMany({
+    where: { groupId: user.groupId },
     orderBy: [{ role: 'asc' }, { name: 'asc' }],
     include: {
       _count: {

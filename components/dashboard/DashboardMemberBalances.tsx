@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { ArrowUpRight, ArrowDownRight, ChevronRight, X, Check } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, ChevronRight, X, Check, Users, ArrowRight } from 'lucide-react'
 import { formatCurrencyDisplay } from '@/lib/utils'
 import { settleMemberBalance } from '@/actions/settlements'
 import { toast } from 'sonner'
@@ -31,20 +31,40 @@ export default function DashboardMemberBalances({
   memberBalances?: MemberBalance[]
 }) {
   const [selectedMember, setSelectedMember] = useState<MemberBalance | null>(null)
-  const [direction, setDirection] = useState<'MEMBER_TO_ADMIN' | 'ADMIN_TO_MEMBER'>('MEMBER_TO_ADMIN')
+  const [targetMemberId, setTargetMemberId] = useState<string>('')
+  const [action, setAction] = useState<'GIVE' | 'BORROW'>('GIVE')
   const [settleAmount, setSettleAmount] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  // Find target member object
+  const targetMember = memberBalances.find(m => m.id === targetMemberId) || null
+
   function handleOpenModal(member: MemberBalance) {
     setSelectedMember(member)
-    // Default direction based on net balance
-    setDirection(member.netBalance < 0 ? 'MEMBER_TO_ADMIN' : 'ADMIN_TO_MEMBER')
-    setSettleAmount('') // Blank by default
+    // Find first other member as default counterparty
+    const otherMembers = memberBalances.filter(m => m.id !== member.id)
+    if (otherMembers.length > 0) {
+      // Prefer member with opposite balance if available
+      const counterparty = (member.netBalance < 0
+        ? otherMembers.find(m => m.netBalance > 0)
+        : otherMembers.find(m => m.netBalance < 0)) || otherMembers[0]
+      setTargetMemberId(counterparty.id)
+    } else {
+      setTargetMemberId('')
+    }
+
+    // Default action: if selectedMember owes money (negative), default to GIVE (they give to clear debt)
+    setAction(member.netBalance < 0 ? 'GIVE' : 'BORROW')
+    setSettleAmount('')
   }
 
   function handleSettle(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedMember) return
+    if (!targetMemberId) {
+      toast.error('Please select a member to settle with.')
+      return
+    }
 
     const amount = parseFloat(settleAmount)
     if (isNaN(amount) || amount <= 0) {
@@ -54,19 +74,39 @@ export default function DashboardMemberBalances({
 
     startTransition(async () => {
       const result = await settleMemberBalance({
-        userId: selectedMember.id,
+        fromUserId: selectedMember.id,
+        toUserId: targetMemberId,
         amount,
-        direction,
+        action,
       })
 
       if (result.success) {
-        toast.success(`Settled Rs. ${amount.toFixed(2)} for ${selectedMember.name}!`)
+        const fromName = selectedMember.name
+        const toName = targetMember?.name || 'Member'
+        if (action === 'GIVE') {
+          toast.success(`${fromName} gave Rs. ${amount.toFixed(2)} to ${toName}!`)
+        } else {
+          toast.success(`${fromName} borrowed Rs. ${amount.toFixed(2)} from ${toName}!`)
+        }
         setSelectedMember(null)
       } else {
         toast.error(result.error)
       }
     })
   }
+
+  // Calculate live preview of balance changes
+  const parsedAmount = parseFloat(settleAmount) || 0
+  const selectedBefore = selectedMember?.netBalance ?? 0
+  const targetBefore = targetMember?.netBalance ?? 0
+
+  // If GIVE: selectedMember gives to targetMember -> selectedMember balance +amount, targetMember -amount
+  // If BORROW: selectedMember borrows from targetMember -> selectedMember balance -amount, targetMember +amount
+  const selectedDelta = action === 'GIVE' ? parsedAmount : -parsedAmount
+  const targetDelta = action === 'GIVE' ? -parsedAmount : parsedAmount
+
+  const selectedAfter = selectedBefore + selectedDelta
+  const targetAfter = targetBefore + targetDelta
 
   return (
     <div className="animate-slide-up">
@@ -133,49 +173,33 @@ export default function DashboardMemberBalances({
                   {member.netBalance > 0 ? '+' : member.netBalance < 0 ? '-' : ''}
                   {formatCurrencyDisplay(Math.abs(member.netBalance))}
                 </p>
+                {member.pendingToPay !== undefined && member.pendingToPay > 0 && (
+                  <p className="text-[11px] text-ios-gray mt-0.5">
+                    Owes {formatCurrencyDisplay(member.pendingToPay)}
+                  </p>
+                )}
               </div>
-              <ChevronRight className="w-4 h-4 text-ios-gray/50" />
+              <ChevronRight className="w-4 h-4 text-ios-gray/40 flex-shrink-0" />
             </div>
           </button>
         ))}
       </div>
 
-      {/* ─── iOS Settle Balance Modal ─── */}
+      {/* ─── Member-to-Member Settlement Modal ─── */}
       {selectedMember && (
         <div
-          className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in p-0 sm:p-4 font-outfit"
+          className="modal-overlay"
           onClick={e => e.target === e.currentTarget && setSelectedMember(null)}
         >
-          <div className="w-full max-w-md bg-white rounded-t-[28px] sm:rounded-3xl px-6 pt-6 pb-9 sm:pb-6 shadow-2xl animate-slide-up">
-            {/* Grab Handle */}
-            <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4 sm:hidden" />
-
+          <div className="modal-content animate-slide-up max-w-[420px] w-full">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-white text-base ${
-                    avatarColors[memberBalances.findIndex(m => m.id === selectedMember.id) % avatarColors.length]
-                  }`}
-                >
-                  {selectedMember.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-ios-title3 font-bold text-primary">
-                      {selectedMember.name}
-                    </h3>
-                    {selectedMember.role === 'ADMIN' && (
-                      <span className="inline-flex items-center bg-ios-blue/10 text-ios-blue text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                        Admin
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-ios-caption1 text-ios-gray">Settle Member Balance</p>
-                </div>
+              <div>
+                <h3 className="font-bold text-primary text-lg">Settle Balance</h3>
+                <p className="text-xs text-ios-gray">Member-to-member payment</p>
               </div>
-
               <button
+                type="button"
                 onClick={() => setSelectedMember(null)}
                 className="w-8 h-8 rounded-full bg-ios-lightGray text-ios-gray flex items-center justify-center hover:bg-gray-200 transition-colors"
               >
@@ -183,52 +207,38 @@ export default function DashboardMemberBalances({
               </button>
             </div>
 
-            {/* Current Balance Summary Box */}
-            <div className="bg-[#F2F2F7] rounded-2xl p-4 mb-5 border border-black/[0.04]">
-              <div className="flex items-center justify-between text-ios-caption1 text-ios-gray mb-1">
-                <span>Net Balance</span>
-              </div>
-              <p
-                className={`text-2xl font-bold tabular-nums ${
-                  selectedMember.netBalance > 0
-                    ? 'text-green-500'
-                    : selectedMember.netBalance < 0
-                    ? 'text-red-500'
-                    : 'text-ios-gray'
-                }`}
-              >
-                {selectedMember.netBalance > 0 ? '+' : selectedMember.netBalance < 0 ? '-' : ''}
-                {formatCurrencyDisplay(Math.abs(selectedMember.netBalance))}
-              </p>
-            </div>
-
-            {/* Form */}
             <form onSubmit={handleSettle} className="space-y-4">
-              {/* Payment Direction Toggle */}
+              {/* Member 1 (Primary) */}
               <div>
-                <label className="label">Payment Direction</label>
+                <label className="label">1st Member</label>
+                <div className="p-3 bg-[#F2F2F7] rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-ios-blue text-white flex items-center justify-center font-bold text-xs">
+                      {selectedMember.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-primary text-sm">{selectedMember.name}</p>
+                      <p className="text-[11px] text-ios-gray">
+                        Current: {selectedMember.netBalance >= 0 ? '+' : ''}
+                        {formatCurrencyDisplay(selectedMember.netBalance)}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold text-ios-blue bg-ios-blue/10 px-2 py-0.5 rounded-md">
+                    Selected
+                  </span>
+                </div>
+              </div>
+
+              {/* Action / Payment Direction: Give vs Borrow */}
+              <div>
+                <label className="label">Action</label>
                 <div className="grid grid-cols-2 gap-2 p-1 bg-[#F2F2F7] rounded-2xl border border-black/[0.04]">
                   <button
                     type="button"
-                    onClick={() => setDirection('MEMBER_TO_ADMIN')}
+                    onClick={() => setAction('GIVE')}
                     className={`py-2.5 px-3 rounded-[12px] text-ios-caption1 transition-all flex flex-col items-center justify-center text-center gap-0.5 ${
-                      direction === 'MEMBER_TO_ADMIN'
-                        ? 'bg-white text-red-600 shadow-sm border border-black/[0.06]'
-                        : 'text-ios-gray hover:text-primary'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1 font-bold text-xs">
-                      <ArrowDownRight className="w-3.5 h-3.5 text-red-500" />
-                      Borrow
-                    </span>
-                    <span className="text-[10px] text-ios-gray font-normal">Member → Admin</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setDirection('ADMIN_TO_MEMBER')}
-                    className={`py-2.5 px-3 rounded-[12px] text-ios-caption1 transition-all flex flex-col items-center justify-center text-center gap-0.5 ${
-                      direction === 'ADMIN_TO_MEMBER'
+                      action === 'GIVE'
                         ? 'bg-white text-green-600 shadow-sm border border-black/[0.06]'
                         : 'text-ios-gray hover:text-primary'
                     }`}
@@ -237,13 +247,61 @@ export default function DashboardMemberBalances({
                       <ArrowUpRight className="w-3.5 h-3.5 text-green-500" />
                       Give
                     </span>
-                    <span className="text-[10px] text-ios-gray font-normal">Admin → Member</span>
+                    <span className="text-[10px] text-ios-gray font-normal">
+                      {selectedMember.name} gives money
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAction('BORROW')}
+                    className={`py-2.5 px-3 rounded-[12px] text-ios-caption1 transition-all flex flex-col items-center justify-center text-center gap-0.5 ${
+                      action === 'BORROW'
+                        ? 'bg-white text-red-600 shadow-sm border border-black/[0.06]'
+                        : 'text-ios-gray hover:text-primary'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1 font-bold text-xs">
+                      <ArrowDownRight className="w-3.5 h-3.5 text-red-500" />
+                      Borrow
+                    </span>
+                    <span className="text-[10px] text-ios-gray font-normal">
+                      {selectedMember.name} receives money
+                    </span>
                   </button>
                 </div>
               </div>
 
+              {/* 2nd Member Selection (Counterparty) */}
               <div>
-                <label className="label">Amount to Settle</label>
+                <label className="label">
+                  {action === 'GIVE' ? 'Give to (2nd Member)' : 'Borrow from (2nd Member)'}
+                </label>
+                <div className="relative">
+                  <select
+                    value={targetMemberId}
+                    onChange={e => setTargetMemberId(e.target.value)}
+                    className="input appearance-none pr-10 cursor-pointer font-medium"
+                    required
+                  >
+                    {memberBalances
+                      .filter(m => m.id !== selectedMember.id)
+                      .map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.netBalance >= 0 ? '+' : ''}
+                          {formatCurrencyDisplay(m.netBalance)})
+                        </option>
+                      ))}
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-ios-gray">
+                    <Users className="w-4 h-4" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className="label">Amount</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 font-semibold text-sm">
                     Rs.
@@ -255,15 +313,73 @@ export default function DashboardMemberBalances({
                     value={settleAmount}
                     onChange={e => setSettleAmount(e.target.value)}
                     placeholder="0.00"
-                    className="input pl-11 font-mono"
+                    className="input pl-11 font-mono text-base font-semibold"
                     required
                     autoFocus
                   />
                 </div>
               </div>
 
-              {/* 1-Word Action Buttons */}
-              <div className="flex gap-3 pt-3">
+              {/* Transaction Summary & Balance Preview */}
+              {targetMember && parsedAmount > 0 && (
+                <div className="bg-[#F2F2F7] rounded-xl p-3 border border-black/[0.04] space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-semibold text-primary border-b border-black/[0.06] pb-1.5">
+                    <span>Transaction</span>
+                    <span className="text-ios-blue flex items-center gap-1">
+                      {action === 'GIVE'
+                        ? `${selectedMember.name} → ${targetMember.name}`
+                        : `${targetMember.name} → ${selectedMember.name}`}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-ios-gray">
+                      <span>{selectedMember.name}:</span>
+                      <span className="font-mono font-medium">
+                        {formatCurrencyDisplay(selectedBefore)} ➔{' '}
+                        <strong
+                          className={
+                            selectedAfter > 0
+                              ? 'text-green-600'
+                              : selectedAfter < 0
+                              ? 'text-red-600'
+                              : 'text-primary'
+                          }
+                        >
+                          {selectedAfter >= 0 ? '+' : ''}
+                          {formatCurrencyDisplay(selectedAfter)}
+                        </strong>{' '}
+                        ({selectedDelta > 0 ? '+' : ''}
+                        {formatCurrencyDisplay(selectedDelta)})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-ios-gray">
+                      <span>{targetMember.name}:</span>
+                      <span className="font-mono font-medium">
+                        {formatCurrencyDisplay(targetBefore)} ➔{' '}
+                        <strong
+                          className={
+                            targetAfter > 0
+                              ? 'text-green-600'
+                              : targetAfter < 0
+                              ? 'text-red-600'
+                              : 'text-primary'
+                          }
+                        >
+                          {targetAfter >= 0 ? '+' : ''}
+                          {formatCurrencyDisplay(targetAfter)}
+                        </strong>{' '}
+                        ({targetDelta > 0 ? '+' : ''}
+                        {formatCurrencyDisplay(targetDelta)})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setSelectedMember(null)}
@@ -273,14 +389,14 @@ export default function DashboardMemberBalances({
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending}
+                  disabled={isPending || !targetMemberId}
                   className="btn-primary flex-1 py-3 rounded-[14px] flex items-center justify-center gap-2"
                   id="settle-member-submit"
                 >
                   {isPending ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    'Settle'
+                    'Confirm Settlement'
                   )}
                 </button>
               </div>

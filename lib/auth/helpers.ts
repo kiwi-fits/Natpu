@@ -8,6 +8,9 @@ export type AuthUser = {
   name: string
   email: string
   role: Role
+  groupId: string
+  groupName: string
+  groupSlug: string
 }
 
 export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
@@ -20,13 +23,14 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
     }
 
     const sessionUserId = cookieStore.get('auth_user_id')?.value
+    const sessionGroupId = cookieStore.get('auth_group_id')?.value
 
-    if (sessionUserId) {
+    if (sessionUserId && sessionGroupId) {
       const dbUser = await prisma.user.findUnique({
-        where: { id: sessionUserId, status: 'ACTIVE' },
-        select: { id: true, name: true, email: true, role: true },
+        where: { id: sessionUserId, status: 'ACTIVE', groupId: sessionGroupId },
+        select: { id: true, name: true, email: true, role: true, groupId: true, group: { select: { name: true, slug: true } } },
       })
-      if (dbUser) return { ...dbUser, role: dbUser.role as Role }
+      if (dbUser) return { ...dbUser, role: dbUser.role as Role, groupName: dbUser.group.name, groupSlug: dbUser.group.slug }
     }
   } catch (err) {
     // Non-request context
@@ -50,4 +54,13 @@ export async function requireAdmin(): Promise<AuthUser> {
 
 export function isAdmin(user: AuthUser): boolean {
   return user.role === 'ADMIN'
+}
+
+/**
+ * Get the current group ID from the authenticated user.
+ * Use this to scope all queries to the current group.
+ */
+export async function getGroupId(): Promise<string> {
+  const user = await requireAuth()
+  return user.groupId
 }

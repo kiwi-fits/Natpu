@@ -16,6 +16,7 @@ export default async function DashboardPage() {
   if (!user) return null
 
   // Fetch data in parallel for maximum speed on Cloudflare D1
+  // All queries scoped to user's group
   const [
     allNotifications,
     totalExpenseAgg,
@@ -41,17 +42,19 @@ export default async function DashboardPage() {
     }),
     prisma.expense.aggregate({
       _sum: { amount: true },
+      where: { meeting: { groupId: user.groupId } },
     }),
     prisma.meeting.findFirst({
+      where: { groupId: user.groupId },
       orderBy: { createdAt: 'desc' },
       include: { expenses: true },
     }),
     prisma.user.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', groupId: user.groupId },
       select: { id: true, name: true, role: true, avatarUrl: true },
     }),
     prisma.meeting.findMany({
-      where: { status: { in: ['CALCULATED', 'SETTLED'] } },
+      where: { status: { in: ['CALCULATED', 'SETTLED'] }, groupId: user.groupId },
       include: {
         attendees: true,
         expenses: true,
@@ -138,9 +141,12 @@ export default async function DashboardPage() {
           <h1 className="text-ios-title2 text-primary">
             {getGreeting(user.name.split(' ')[0])}
           </h1>
-          <div className="mt-1">
+          <div className="mt-1 flex items-center gap-2">
             <span className="inline-flex items-center bg-ios-blue/10 text-ios-blue text-[11px] font-semibold px-2 py-0.5 rounded-full">
               Admin
+            </span>
+            <span className="inline-flex items-center bg-purple-500/10 text-purple-600 text-[11px] font-semibold px-2 py-0.5 rounded-full">
+              {user.groupName}
             </span>
           </div>
         </div>
@@ -182,6 +188,7 @@ export default async function DashboardPage() {
               totalSpend={totalMeetingSpend}
               lastUpdatedDate={lastMeetingWithExpenses ? new Date(lastMeetingWithExpenses.date || lastMeetingWithExpenses.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined}
               memberBalances={memberBalances.map(m => ({ name: m.name, netBalance: m.netBalance, pendingToPay: m.pendingToPay }))}
+              groupSlug={user.groupSlug}
             />
           </div>
         </div>

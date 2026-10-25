@@ -12,11 +12,13 @@ interface WhatsAppShareButtonProps {
   memberBalances?: MemberBalance[]
   totalSpend?: number
   lastUpdatedDate?: string
+  groupSlug?: string
 }
 
 export default function WhatsAppShareButton({
   memberBalances = [],
   lastUpdatedDate,
+  groupSlug,
 }: WhatsAppShareButtonProps) {
   function formatAmount(amount: number): string {
     return `Rs. ${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
@@ -59,7 +61,8 @@ export default function WhatsAppShareButton({
   }
 
   function handleWhatsAppShare() {
-    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/balances` : ''
+    const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}/share/balances` : ''
+    const shareUrl = groupSlug ? `${baseUrl}?group=${encodeURIComponent(groupSlug)}` : baseUrl
     const message = generateWhatsAppMessage(shareUrl)
     const encodedMessage = encodeURIComponent(message)
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank')

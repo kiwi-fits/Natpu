@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { loginAction } from '@/actions/auth'
 import { toast } from 'sonner'
 import { Eye, EyeOff, LogIn, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -61,9 +62,9 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            {/* Username / Email Field */}
+            {/* Username Field */}
             <div>
-              <label htmlFor="username" className="label">Username or Email</label>
+              <label htmlFor="username" className="label">Username</label>
               <input
                 id="username"
                 type="text"
@@ -117,6 +118,16 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Group setup link */}
+          <div className="mt-5 pt-4 border-t border-black/[0.06] text-center">
+            <p className="text-ios-footnote text-ios-gray">
+              Need a separate group?{' '}
+              <Link href="/setup" className="font-semibold text-ios-blue hover:underline">
+                Create Group
+              </Link>
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

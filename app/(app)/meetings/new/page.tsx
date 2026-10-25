@@ -11,7 +11,7 @@ export default async function NewMeetingPage() {
   if (!user || user.role !== 'ADMIN') redirect('/dashboard')
 
   const members = await prisma.user.findMany({
-    where: { status: 'ACTIVE' },
+    where: { groupId: user.groupId, status: 'ACTIVE' },
     select: { id: true, name: true, email: true },
     orderBy: { name: 'asc' },
   })

@@ -54,10 +54,12 @@ export default function ShareBalancesClient({
   memberBalances,
   bankDetails,
   updatedAtFormatted,
+  groupName,
 }: {
   memberBalances: MemberBalanceData[]
   bankDetails: BankDetailsData
   updatedAtFormatted: string
+  groupName?: string
 }) {
   const [selectedMember, setSelectedMember] = useState<MemberBalanceData | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -113,7 +115,7 @@ export default function ShareBalancesClient({
         {/* ─── Minimalist Top Nav Header ─── */}
         <header className="bg-white border-b border-black/[0.08] sticky top-0 z-30 px-5 py-3.5 flex items-center justify-between shadow-xs">
           <span className="font-extrabold text-[22px] tracking-wider text-black font-outfit uppercase">
-            NATPU
+            {groupName || 'NATPU'}
           </span>
         </header>
 

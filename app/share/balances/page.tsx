@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/db'
 import ShareBalancesClient, { MemberBalanceData, MemberMeetingBreakdown, BankDetailsData } from '@/components/share/ShareBalancesClient'
@@ -5,31 +6,62 @@ import ShareBalancesClient, { MemberBalanceData, MemberMeetingBreakdown, BankDet
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Natpu — Member Balances & Settlement Statement',
+  title: 'Member Balances & Settlement Statement',
   description: 'View group expense summary, individual member balances, meeting breakdowns, and verified bank account transfer details.',
   openGraph: {
-    title: 'Natpu • Group Expense Statement',
+    title: 'Group Expense Statement',
     description: 'Itemized group expense breakdown, real-time member balances, and official settlement bank details.',
-    siteName: 'Natpu',
+    siteName: 'Splitmeet',
     type: 'website',
   },
   twitter: {
     card: 'summary',
-    title: 'Natpu • Group Expense Statement',
+    title: 'Group Expense Statement',
     description: 'Itemized group expense breakdown, real-time member balances, and official settlement bank details.',
   },
 }
 
-export default async function ShareBalancesPage() {
+export default async function ShareBalancesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ group?: string }>
+}) {
+  const resolvedParams = searchParams ? await searchParams : {}
+  const groupSlug = resolvedParams.group?.trim().toLowerCase()
+
+  const cookieStore = await cookies()
+  const cookieGroupId = cookieStore.get('auth_group_id')?.value
+
+  let targetGroup = null
+  if (groupSlug) {
+    targetGroup = await prisma.group.findUnique({ where: { slug: groupSlug } })
+  }
+  if (!targetGroup && cookieGroupId) {
+    targetGroup = await prisma.group.findUnique({ where: { id: cookieGroupId } })
+  }
+  if (!targetGroup) {
+    targetGroup = await prisma.group.findFirst({ orderBy: { createdAt: 'asc' } })
+  }
+
+  const groupId = targetGroup?.id
+
   // Fetch bank details & active members & calculated meetings
   const [dbBankDetails, allMembers, calculatedMeetings] = await Promise.all([
-    prisma.bankDetails.findFirst(),
+    prisma.bankDetails.findFirst({
+      where: groupId ? { groupId } : undefined,
+    }),
     prisma.user.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: 'ACTIVE',
+        ...(groupId ? { groupId } : {}),
+      },
       select: { id: true, name: true, role: true },
     }),
     prisma.meeting.findMany({
-      where: { status: { in: ['CALCULATED', 'SETTLED'] } },
+      where: {
+        status: { in: ['CALCULATED', 'SETTLED'] },
+        ...(groupId ? { groupId } : {}),
+      },
       include: {
         attendees: true,
         expenses: true,
@@ -41,7 +73,7 @@ export default async function ShareBalancesPage() {
 
   const bankDetails: BankDetailsData = {
     bankName: dbBankDetails?.bankName || 'HDFC Bank',
-    accountName: dbBankDetails?.accountName || 'Natpu Admin',
+    accountName: dbBankDetails?.accountName || (targetGroup ? `${targetGroup.name} Admin` : 'Admin'),
     accountNumber: dbBankDetails?.accountNumber || '9876543210987654',
     branch: dbBankDetails?.branch || 'HDFC0001234',
   }
@@ -136,6 +168,7 @@ export default async function ShareBalancesPage() {
       memberBalances={memberBalances}
       bankDetails={bankDetails}
       updatedAtFormatted={updatedAtFormatted}
+      groupName={targetGroup?.name}
     />
   )
 }

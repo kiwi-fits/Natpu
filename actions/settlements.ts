@@ -18,6 +18,7 @@ export async function submitPayment(settlementId: string): Promise<ActionResult>
     })
 
     if (!settlement) return { success: false, error: 'Settlement not found.' }
+    if (settlement.meeting.groupId !== user.groupId) return { success: false, error: 'Settlement not found.' }
     if (settlement.userId !== user.id) {
       return { success: false, error: 'You can only submit your own payment.' }
     }
@@ -34,6 +35,7 @@ export async function submitPayment(settlementId: string): Promise<ActionResult>
       userId: user.id,
       action: 'SUBMIT_PAYMENT',
       meetingId: settlement.meetingId,
+      groupId: user.groupId,
     })
 
     revalidatePath(`/meetings/${settlement.meetingId}`)
@@ -68,6 +70,7 @@ export async function markSettled(formData: FormData): Promise<ActionResult> {
     })
 
     if (!settlement) return { success: false, error: 'Settlement not found.' }
+    if (settlement.meeting.groupId !== admin.groupId) return { success: false, error: 'Settlement not found.' }
     if (settlement.status === 'SETTLED') return { success: false, error: 'Already settled.' }
 
     await prisma.settlement.update({
@@ -97,6 +100,7 @@ export async function markSettled(formData: FormData): Promise<ActionResult> {
       targetUserId: settlement.userId,
       oldValue: settlement.expectedAmount.toString(),
       newValue: actualAmount,
+      groupId: admin.groupId,
     })
 
     revalidatePath(`/meetings/${settlement.meetingId}`)
@@ -124,8 +128,10 @@ export async function updateSettledAmount(
 
     const settlement = await prisma.settlement.findUnique({
       where: { id: settlementId },
+      include: { meeting: true },
     })
     if (!settlement) return { success: false, error: 'Settlement not found.' }
+    if (settlement.meeting.groupId !== admin.groupId) return { success: false, error: 'Settlement not found.' }
     if (settlement.status !== 'SETTLED') return { success: false, error: 'Settlement is not yet confirmed.' }
 
     await prisma.settlement.update({
@@ -139,6 +145,7 @@ export async function updateSettledAmount(
       meetingId: settlement.meetingId,
       oldValue: settlement.actualAmount?.toString(),
       newValue: parsed.data.actualAmount,
+      groupId: admin.groupId,
     })
 
     revalidatePath(`/meetings/${settlement.meetingId}/settlement`)
@@ -153,12 +160,18 @@ export async function updateSettledAmount(
 }
 
 export async function settleMemberBalance({
-  userId,
+  fromUserId,
+  toUserId,
   amount,
-  direction = 'MEMBER_TO_ADMIN',
+  action = 'GIVE',
+  userId,
+  direction,
 }: {
-  userId: string
+  fromUserId?: string
+  toUserId?: string
   amount: number
+  action?: 'GIVE' | 'BORROW'
+  userId?: string
   direction?: 'MEMBER_TO_ADMIN' | 'ADMIN_TO_MEMBER'
 }): Promise<ActionResult> {
   try {
@@ -168,136 +181,182 @@ export async function settleMemberBalance({
       return { success: false, error: 'Please enter a valid positive amount.' }
     }
 
-    if (direction === 'MEMBER_TO_ADMIN') {
-      // Member pays Admin (clearing pending dues)
-      const pendingSettlements = await prisma.settlement.findMany({
-        where: {
-          userId,
-          status: { in: ['PENDING', 'SUBMITTED'] },
-        },
-        include: { meeting: true },
-        orderBy: { createdAt: 'asc' },
-      })
+    // Determine payer and payee:
+    let payerId: string
+    let payeeId: string
 
-      let remainingToSettle = new Decimal(amount)
-
-      if (pendingSettlements.length > 0) {
-        for (const settlement of pendingSettlements) {
-          if (remainingToSettle.lte(0)) break
-
-          const expected = new Decimal(settlement.expectedAmount)
-          const settleAmt = Decimal.min(remainingToSettle, expected)
-
-          if (settleAmt.lt(expected)) {
-            // Partial settlement: update current to settled amount and create pending for remaining
-            await prisma.settlement.update({
-              where: { id: settlement.id },
-              data: {
-                expectedAmount: settleAmt.toNumber(),
-                actualAmount: settleAmt.toNumber(),
-                status: 'SETTLED',
-                settledAt: new Date(),
-                settledBy: admin.id,
-                note: 'MEMBER_TO_ADMIN',
-              },
-            })
-
-            const remainingExpected = expected.minus(settleAmt)
-            await prisma.settlement.create({
-              data: {
-                meetingId: settlement.meetingId,
-                userId: settlement.userId,
-                expectedAmount: remainingExpected.toNumber(),
-                status: 'PENDING',
-                note: 'Remaining balance after partial settlement',
-              },
-            })
-          } else {
-            // Full settlement
-            await prisma.settlement.update({
-              where: { id: settlement.id },
-              data: {
-                status: 'SETTLED',
-                actualAmount: settleAmt.toNumber(),
-                settledAt: new Date(),
-                settledBy: admin.id,
-                note: 'MEMBER_TO_ADMIN',
-              },
-            })
-          }
-
-          remainingToSettle = remainingToSettle.minus(settleAmt)
-        }
+    if (fromUserId && toUserId) {
+      if (action === 'BORROW') {
+        // fromUser borrows from toUser -> toUser gives money to fromUser
+        payerId = toUserId
+        payeeId = fromUserId
       } else {
-        // Create direct payment received record
-        const meeting = await prisma.meeting.create({
-          data: {
-            title: 'Payment Received',
-            date: new Date(),
-            status: 'SETTLED',
-            createdBy: admin.id,
-            notes: 'Payment received directly from member',
-          },
-        })
-
-        await prisma.meetingAttendee.create({
-          data: {
-            meetingId: meeting.id,
-            userId,
-          },
-        })
-
-        await prisma.settlement.create({
-          data: {
-            meetingId: meeting.id,
-            userId,
-            expectedAmount: amount,
-            actualAmount: amount,
-            status: 'SETTLED',
-            settledAt: new Date(),
-            settledBy: admin.id,
-            note: 'MEMBER_TO_ADMIN',
-          },
-        })
+        // fromUser gives to toUser -> fromUser gives money to toUser
+        payerId = fromUserId
+        payeeId = toUserId
+      }
+    } else if (userId) {
+      // Legacy direction format
+      if (direction === 'ADMIN_TO_MEMBER') {
+        payerId = admin.id
+        payeeId = userId
+      } else {
+        payerId = userId
+        payeeId = admin.id
       }
     } else {
-      // ADMIN_TO_MEMBER (Admin pays refund / returns money to member)
-      const meeting = await prisma.meeting.create({
-        data: {
-          title: 'Refund Paid',
-          date: new Date(),
-          status: 'SETTLED',
-          createdBy: admin.id,
-          notes: 'Refund paid by admin to member',
-        },
-      })
+      return { success: false, error: 'Please select both members.' }
+    }
 
-      await prisma.meetingAttendee.create({
-        data: {
-          meetingId: meeting.id,
-          userId,
-        },
-      })
+    if (payerId === payeeId) {
+      return { success: false, error: 'Cannot settle payment between the same person.' }
+    }
 
+    // Verify both members belong to this group
+    const [payer, payee] = await Promise.all([
+      prisma.user.findUnique({ where: { id: payerId } }),
+      prisma.user.findUnique({ where: { id: payeeId } }),
+    ])
+
+    if (!payer || payer.groupId !== admin.groupId) {
+      return { success: false, error: 'Payer member not found in this group.' }
+    }
+    if (!payee || payee.groupId !== admin.groupId) {
+      return { success: false, error: 'Payee member not found in this group.' }
+    }
+
+    // 1. Check if payer has pending settlements to clear
+    const pendingSettlements = await prisma.settlement.findMany({
+      where: {
+        userId: payerId,
+        status: { in: ['PENDING', 'SUBMITTED'] },
+        meeting: { groupId: admin.groupId },
+      },
+      include: { meeting: true },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    let remainingToSettle = new Decimal(amount)
+
+    if (pendingSettlements.length > 0) {
+      for (const settlement of pendingSettlements) {
+        if (remainingToSettle.lte(0)) break
+
+        const expected = new Decimal(settlement.expectedAmount)
+        const settleAmt = Decimal.min(remainingToSettle, expected)
+
+        if (settleAmt.lt(expected)) {
+          // Partial settlement
+          await prisma.settlement.update({
+            where: { id: settlement.id },
+            data: {
+              expectedAmount: settleAmt.toNumber(),
+              actualAmount: settleAmt.toNumber(),
+              status: 'SETTLED',
+              settledAt: new Date(),
+              settledBy: admin.id,
+              note: `Paid to ${payee.name}`,
+            },
+          })
+
+          const remainingExpected = expected.minus(settleAmt)
+          await prisma.settlement.create({
+            data: {
+              meetingId: settlement.meetingId,
+              userId: settlement.userId,
+              expectedAmount: remainingExpected.toNumber(),
+              status: 'PENDING',
+              note: 'Remaining balance after partial settlement',
+            },
+          })
+        } else {
+          // Full settlement
+          await prisma.settlement.update({
+            where: { id: settlement.id },
+            data: {
+              status: 'SETTLED',
+              actualAmount: settleAmt.toNumber(),
+              settledAt: new Date(),
+              settledBy: admin.id,
+              note: `Paid to ${payee.name}`,
+            },
+          })
+        }
+
+        remainingToSettle = remainingToSettle.minus(settleAmt)
+      }
+    }
+
+    // 2. Create Payment Meeting record
+    const meeting = await prisma.meeting.create({
+      data: {
+        title: `Payment: ${payer.name} → ${payee.name}`,
+        date: new Date(),
+        status: 'SETTLED',
+        createdBy: admin.id,
+        groupId: admin.groupId,
+        notes: `${payer.name} gave Rs. ${amount.toFixed(2)} to ${payee.name}`,
+      },
+    })
+
+    await prisma.meetingAttendee.createMany({
+      data: [
+        { meetingId: meeting.id, userId: payerId },
+        { meetingId: meeting.id, userId: payeeId },
+      ],
+    })
+
+    // Payee settlement (note 'ADMIN_TO_MEMBER' debits payee's balance in netBalance formula)
+    await prisma.settlement.create({
+      data: {
+        meetingId: meeting.id,
+        userId: payeeId,
+        expectedAmount: amount,
+        actualAmount: amount,
+        status: 'SETTLED',
+        settledAt: new Date(),
+        settledBy: admin.id,
+        note: 'ADMIN_TO_MEMBER',
+      },
+    })
+
+    // If payer had remaining amount not absorbed by prior pending settlements, credit payer
+    if (remainingToSettle.gt(0)) {
       await prisma.settlement.create({
         data: {
           meetingId: meeting.id,
-          userId,
-          expectedAmount: amount,
-          actualAmount: amount,
+          userId: payerId,
+          expectedAmount: remainingToSettle.toNumber(),
+          actualAmount: remainingToSettle.toNumber(),
           status: 'SETTLED',
           settledAt: new Date(),
           settledBy: admin.id,
-          note: 'ADMIN_TO_MEMBER',
+          note: `GAVE_TO_${payee.id}`,
         },
       })
     }
 
+    // 3. Notifications & Audit
+    await createNotification({
+      userId: payerId,
+      type: 'PAYMENT_SENT',
+      title: 'Payment Recorded',
+      message: `You gave Rs. ${amount.toFixed(2)} to ${payee.name}.`,
+    })
+
+    await createNotification({
+      userId: payeeId,
+      type: 'PAYMENT_RECEIVED',
+      title: 'Payment Received',
+      message: `You received Rs. ${amount.toFixed(2)} from ${payer.name}.`,
+    })
+
     await createAuditLog({
       userId: admin.id,
       action: 'SETTLE_MEMBER_BALANCE',
-      targetUserId: userId,
-      newValue: `${direction}: ${amount}`,
+      targetUserId: payerId,
+      newValue: `${payer.name} gave Rs. ${amount.toFixed(2)} to ${payee.name}`,
+      groupId: admin.groupId,
     })
 
     revalidatePath('/dashboard')

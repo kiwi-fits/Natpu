@@ -38,9 +38,9 @@ export async function submitEnquiry({
       return { success: false, error: 'Meeting not found.' }
     }
 
-    // Find all active Admin users to send notifications to
+    // Find all active Admin users in the same group to send notifications to
     const admins = await prisma.user.findMany({
-      where: { role: 'ADMIN', status: 'ACTIVE' },
+      where: { role: 'ADMIN', status: 'ACTIVE', groupId: meeting.groupId },
       select: { id: true },
     })
 
@@ -90,7 +90,7 @@ export async function submitEnquiry({
       `Question: "${trimmedQuery}"`,
     ].filter(Boolean).join('\n')
 
-    // Send notification to each admin
+    // Send notification to each admin in the same group
     for (const admin of admins) {
       await createNotification({
         userId: admin.id,

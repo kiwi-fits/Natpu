@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth/helpers'
 import BottomNav from '@/components/layout/BottomNav'
-import { Toaster } from 'sonner'
 
 export default async function AppLayout({
   children,

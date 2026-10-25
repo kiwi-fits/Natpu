@@ -14,6 +14,16 @@ async function main() {
   await prisma.meeting.deleteMany()
   await prisma.bankDetails.deleteMany()
   await prisma.user.deleteMany()
+  await prisma.group.deleteMany()
+
+  console.log('🏢 Creating default Natpu group...')
+  const natpuGroup = await prisma.group.create({
+    data: {
+      name: 'Natpu',
+      slug: 'natpu',
+      password: '123456789Natpu',
+    },
+  })
 
   console.log('👤 Creating clean Admin user...')
   await prisma.user.create({
@@ -22,6 +32,7 @@ async function main() {
       email: 'admin@splitmeet.local',
       role: 'ADMIN',
       status: 'ACTIVE',
+      groupId: natpuGroup.id,
     },
   })
 
@@ -32,6 +43,7 @@ async function main() {
       accountName: 'Natpu Admin',
       accountNumber: '1234567890',
       branch: 'Main Branch',
+      groupId: natpuGroup.id,
     },
   })
 
@@ -48,11 +60,12 @@ async function main() {
         email: m.email,
         role: 'MEMBER',
         status: 'ACTIVE',
+        groupId: natpuGroup.id,
       },
     })
   }
 
-  console.log('✅ Local database cleaned successfully!')
+  console.log('✅ Local database seeded successfully with Natpu group!')
 }
 
 main()

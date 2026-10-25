@@ -42,7 +42,7 @@ export default async function MeetingDetailPage({
     },
   })
 
-  if (!meeting) notFound()
+  if (!meeting || meeting.groupId !== user.groupId) notFound()
 
   const isAttendee = meeting.attendees.some(a => a.userId === user.id)
   const isAdmin = user.role === 'ADMIN'
@@ -68,7 +68,9 @@ export default async function MeetingDetailPage({
   const attendeesEnteredExpense = meeting.attendees.length - attendeesWithNoExpense
 
   // Bank details for payment info
-  const bankDetails = await prisma.bankDetails.findFirst()
+  const bankDetails = await prisma.bankDetails.findFirst({
+    where: { groupId: user.groupId },
+  })
 
   return (
     <div className="page-container pt-4">
