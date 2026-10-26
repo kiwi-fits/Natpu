@@ -35,15 +35,27 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
     where: { groupId: user.groupId },
   })
 
-  const totalExpected = meeting.settlements.reduce(
-    (sum, s) => sum + parseFloat(s.expectedAmount.toString()), 0
-  )
-  const totalSettled = meeting.settlements
-    .filter(s => s.status === 'SETTLED')
-    .reduce((sum, s) => sum + parseFloat((s.actualAmount ?? 0).toString()), 0)
-  const totalPending = meeting.settlements
-    .filter(s => s.status !== 'SETTLED')
-    .reduce((sum, s) => sum + parseFloat(s.expectedAmount.toString()), 0)
+  const isPayment = meeting.title.startsWith('Payment:') || meeting.expenses.length === 0
+  const payeeSettlement = meeting.settlements.find(s => s.note === 'ADMIN_TO_MEMBER')
+  const paymentAmount = isPayment
+    ? parseFloat((payeeSettlement?.actualAmount ?? payeeSettlement?.expectedAmount ?? meeting.settlements[0]?.actualAmount ?? meeting.settlements[0]?.expectedAmount ?? 0).toString())
+    : 0
+
+  const totalExpected = isPayment
+    ? paymentAmount
+    : meeting.settlements.reduce(
+        (sum, s) => sum + parseFloat(s.expectedAmount.toString()), 0
+      )
+  const totalSettled = isPayment
+    ? paymentAmount
+    : meeting.settlements
+        .filter(s => s.status === 'SETTLED')
+        .reduce((sum, s) => sum + parseFloat((s.actualAmount ?? s.expectedAmount ?? 0).toString()), 0)
+  const totalPending = isPayment
+    ? 0
+    : meeting.settlements
+        .filter(s => s.status !== 'SETTLED')
+        .reduce((sum, s) => sum + parseFloat(s.expectedAmount.toString()), 0)
 
   const pendingCount = meeting.settlements.filter(s => s.status !== 'SETTLED').length
   const settledCount = meeting.settlements.filter(s => s.status === 'SETTLED').length

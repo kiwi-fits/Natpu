@@ -159,6 +159,74 @@ export async function updateSettledAmount(
   }
 }
 
+export async function revertSettlement(settlementId: string): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin()
+
+    const settlement = await prisma.settlement.findUnique({
+      where: { id: settlementId },
+      include: { meeting: true, user: true },
+    })
+
+    if (!settlement) return { success: false, error: 'Settlement not found.' }
+    if (settlement.meeting.groupId !== admin.groupId) return { success: false, error: 'Settlement not found.' }
+    if (settlement.status !== 'SETTLED') return { success: false, error: 'Only settled payments can be reverted.' }
+
+    const amountReverted = settlement.actualAmount ?? settlement.expectedAmount
+
+    await prisma.settlement.update({
+      where: { id: settlementId },
+      data: {
+        status: 'PENDING',
+        actualAmount: null,
+        settledAt: null,
+        settledBy: null,
+        note: null,
+      },
+    })
+
+    // If meeting was marked SETTLED, reopen it to CALCULATED so it's active & shows pending
+    if (settlement.meeting.status === 'SETTLED') {
+      await prisma.meeting.update({
+        where: { id: settlement.meetingId },
+        data: { status: 'CALCULATED' },
+      })
+    }
+
+    // Notify the user
+    await createNotification({
+      userId: settlement.userId,
+      meetingId: settlement.meetingId,
+      type: 'PAYMENT_DUE',
+      title: 'Payment Reverted to Pending',
+      message: `Your payment of Rs. ${amountReverted.toFixed(2)} for "${settlement.meeting.title}" has been reverted to pending.`,
+    })
+
+    await createAuditLog({
+      userId: admin.id,
+      action: 'REVERT_SETTLEMENT',
+      meetingId: settlement.meetingId,
+      targetUserId: settlement.userId,
+      oldValue: amountReverted.toString(),
+      newValue: 'PENDING',
+      groupId: admin.groupId,
+    })
+
+    revalidatePath(`/meetings/${settlement.meetingId}`)
+    revalidatePath(`/meetings/${settlement.meetingId}/settlement`)
+    revalidatePath('/meetings')
+    revalidatePath('/dashboard')
+    revalidatePath('/share/balances')
+    return { success: true, data: undefined }
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message === 'UNAUTHORIZED') return { success: false, error: 'You must be logged in.' }
+      if (err.message === 'FORBIDDEN') return { success: false, error: 'Only admins can revert settlements.' }
+    }
+    return { success: false, error: 'Failed to revert settlement.' }
+  }
+}
+
 export async function settleMemberBalance({
   fromUserId,
   toUserId,

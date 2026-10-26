@@ -1,5 +1,5 @@
 import { adminUpdateExpense } from '../actions/expenses'
-import { markSettled } from '../actions/settlements'
+import { markSettled, revertSettlement } from '../actions/settlements'
 
 // Mock the auth helpers
 jest.mock('../lib/auth/helpers', () => ({
@@ -32,5 +32,12 @@ describe('Permission Checks', () => {
 
     const result = await markSettled(formData)
     expect(result).toEqual({ success: false, error: 'Only admins can mark payments as settled.' })
+  })
+
+  it('MEMBER CANNOT REVERT SETTLEMENT', async () => {
+    ;(requireAdmin as jest.Mock).mockRejectedValue(new Error('FORBIDDEN'))
+
+    const result = await revertSettlement('set-1')
+    expect(result).toEqual({ success: false, error: 'Only admins can revert settlements.' })
   })
 })

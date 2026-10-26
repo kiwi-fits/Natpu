@@ -131,13 +131,48 @@ export async function deleteMeeting(meetingId: string): Promise<ActionResult> {
   try {
     const admin = await requireAdmin()
 
-    const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } })
+    const meeting = await prisma.meeting.findUnique({
+      where: { id: meetingId },
+      include: { attendees: true, settlements: true },
+    })
     if (!meeting || meeting.groupId !== admin.groupId) return { success: false, error: 'Meeting not found.' }
+
+    // If this was a payment meeting between members, restore any prior settlements that were settled by it
+    if (meeting.title.startsWith('Payment:')) {
+      const payerId = meeting.settlements.find(s => s.note?.startsWith('GAVE_TO_'))?.userId || meeting.attendees[0]?.userId
+      if (payerId) {
+        const priorSettled = await prisma.settlement.findMany({
+          where: {
+            userId: payerId,
+            status: 'SETTLED',
+            note: { contains: 'Paid to' },
+            meeting: { groupId: admin.groupId },
+          },
+        })
+        for (const s of priorSettled) {
+          await prisma.settlement.update({
+            where: { id: s.id },
+            data: {
+              status: 'PENDING',
+              actualAmount: null,
+              settledAt: null,
+              settledBy: null,
+              note: null,
+            },
+          })
+          await prisma.meeting.update({
+            where: { id: s.meetingId },
+            data: { status: 'CALCULATED' },
+          })
+        }
+      }
+    }
 
     await prisma.meeting.delete({ where: { id: meetingId } })
     await createAuditLog({ userId: admin.id, action: 'DELETE_MEETING', meetingId, groupId: admin.groupId })
     revalidatePath('/meetings')
     revalidatePath('/dashboard')
+    revalidatePath('/share/balances')
     return { success: true, data: undefined }
   } catch (err) {
     if (err instanceof Error) {

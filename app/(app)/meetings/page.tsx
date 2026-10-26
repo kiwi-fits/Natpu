@@ -157,7 +157,25 @@ export default async function MeetingsPage() {
 
           <div className="space-y-2.5">
             {completedMeetings.map(meeting => {
-              const totalExpense = meeting.expenses.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0)
+              const isPayment = meeting.title.startsWith('Payment:') || meeting.expenses.length === 0
+              let displayAmount = 0
+
+              if (isPayment) {
+                const payeeSettlement = meeting.settlements.find(s => s.note === 'ADMIN_TO_MEMBER')
+                if (payeeSettlement) {
+                  displayAmount = parseFloat((payeeSettlement.actualAmount ?? payeeSettlement.expectedAmount ?? 0).toString())
+                } else if (meeting.settlements.length > 0) {
+                  displayAmount = parseFloat((meeting.settlements[0].actualAmount ?? meeting.settlements[0].expectedAmount ?? 0).toString())
+                }
+              } else {
+                const totalSettled = meeting.settlements
+                  .filter(s => s.status === 'SETTLED')
+                  .reduce((sum, s) => sum + parseFloat((s.actualAmount ?? s.expectedAmount ?? 0).toString()), 0)
+
+                displayAmount = totalSettled > 0
+                  ? totalSettled
+                  : meeting.expenses.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0)
+              }
 
               return (
                 <Link key={meeting.id} href={`/meetings/${meeting.id}`} className="block group">
@@ -183,7 +201,7 @@ export default async function MeetingsPage() {
                       {/* Right: Amount + Settled Badge */}
                       <div className="text-right flex-shrink-0">
                         <p className="text-[15px] font-bold text-gray-800 tabular-nums">
-                          {formatCurrencyDisplay(totalExpense)}
+                          {formatCurrencyDisplay(displayAmount)}
                         </p>
                         <div className="mt-1 flex items-center justify-end gap-1">
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">

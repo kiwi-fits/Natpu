@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { submitPayment, markSettled } from '@/actions/settlements'
+import { submitPayment, markSettled, revertSettlement } from '@/actions/settlements'
 import { toast } from 'sonner'
-import { CheckCircle, Clock, CreditCard, X, AlertCircle } from 'lucide-react'
+import { CheckCircle, Clock, CreditCard, X, AlertCircle, RotateCcw } from 'lucide-react'
 import { formatCurrencyDisplay, formatDateTime, getInitials } from '@/lib/utils'
 import { PaymentStatus } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
@@ -33,6 +33,7 @@ export default function SettlementCard({
 }) {
   const [isPending, startTransition] = useTransition()
   const [showSettleModal, setShowSettleModal] = useState(false)
+  const [showRevertModal, setShowRevertModal] = useState(false)
   const [actualAmount, setActualAmount] = useState(settlement.expectedAmount)
   const [note, setNote] = useState('')
 
@@ -60,6 +61,18 @@ export default function SettlementCard({
       if (result.success) {
         toast.success('Payment confirmed!')
         setShowSettleModal(false)
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  async function handleRevertSettlement() {
+    startTransition(async () => {
+      const result = await revertSettlement(settlement.id)
+      if (result.success) {
+        toast.success('Payment reverted to pending! Pending balance restored.')
+        setShowRevertModal(false)
       } else {
         toast.error(result.error)
       }
@@ -176,6 +189,18 @@ export default function SettlementCard({
               Confirm Payment
             </button>
           )}
+
+          {isAdmin && settlement.status === 'SETTLED' && (
+            <button
+              onClick={() => setShowRevertModal(true)}
+              disabled={isPending}
+              className="w-full text-xs font-semibold py-2 px-3 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors"
+              id={`revert-settled-${settlement.id}`}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Remove / Revert to Pending
+            </button>
+          )}
         </div>
       </div>
 
@@ -261,6 +286,61 @@ export default function SettlementCard({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Revert Settled Modal */}
+      {showRevertModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowRevertModal(false)}>
+          <div className="modal-content animate-slide-up">
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">Revert Settlement?</h3>
+                <p className="text-sm text-gray-500">{settlement.userName}</p>
+              </div>
+              <button onClick={() => setShowRevertModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-100 rounded-xl p-3.5 mb-5 flex gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-rose-800 space-y-1">
+                <p className="font-semibold">This will restore the pending amount.</p>
+                <p className="leading-relaxed">
+                  Marking this settlement as pending will restore <strong>{formatCurrencyDisplay(expected)}</strong> back to {settlement.userName}'s pending balance, and recalculate meeting completion.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowRevertModal(false)}
+                className="btn-secondary flex-1 py-2.5"
+                disabled={isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRevertSettlement}
+                disabled={isPending}
+                className="btn-danger flex-1 py-2.5 flex items-center justify-center gap-2"
+                id="confirm-revert-settlement-btn"
+              >
+                {isPending ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    Yes, Revert to Pending
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

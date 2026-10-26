@@ -53,13 +53,23 @@ export default async function MeetingDetailPage({
 
   const summary = calculateMeetingSummary(expenseInputs)
 
-  const totalExpense = meeting.expenses.reduce(
-    (sum, e) => sum + parseFloat(e.amount.toString()),
-    0
-  )
+  const isPayment = meeting.title.startsWith('Payment:') || meeting.expenses.length === 0
+  const payeeSettlement = meeting.settlements.find(s => s.note === 'ADMIN_TO_MEMBER')
+  const payerSettlement = meeting.settlements.find(s => s.note?.startsWith('GAVE_TO_'))
+  const paymentAmount = isPayment
+    ? parseFloat((payeeSettlement?.actualAmount ?? payeeSettlement?.expectedAmount ?? meeting.settlements[0]?.actualAmount ?? meeting.settlements[0]?.expectedAmount ?? 0).toString())
+    : 0
+
+  const totalExpense = isPayment
+    ? paymentAmount
+    : meeting.expenses.reduce(
+        (sum, e) => sum + parseFloat(e.amount.toString()),
+        0
+      )
 
   const attendeeCount = meeting.attendees.length
   const fairSharePerPerson = attendeeCount > 0 ? totalExpense / attendeeCount : 0
+  const payerId = payerSettlement?.userId || (meeting.attendees[0]?.userId !== payeeSettlement?.userId ? meeting.attendees[0]?.userId : meeting.attendees[1]?.userId)
 
   return (
     <div className="page-container pt-4 pb-20">
@@ -84,18 +94,26 @@ export default async function MeetingDetailPage({
       {/* Bill & Fair Share Overview */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="card p-4">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Total Bill</p>
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+            {isPayment ? 'Payment Amount' : 'Total Bill'}
+          </p>
           <p className="text-xl font-extrabold text-gray-900 tabular-nums">
             {formatCurrencyDisplay(totalExpense)}
           </p>
-          <p className="text-[11px] text-gray-400 mt-0.5">{attendeeCount} friends</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {isPayment ? 'direct transfer' : `${attendeeCount} friends`}
+          </p>
         </div>
         <div className="card p-4">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">Per Person</p>
-          <p className="text-xl font-extrabold text-blue-600 tabular-nums">
-            {formatCurrencyDisplay(fairSharePerPerson)}
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+            {isPayment ? 'Status' : 'Per Person'}
           </p>
-          <p className="text-[11px] text-gray-400 mt-0.5">equal split</p>
+          <p className="text-xl font-extrabold text-blue-600 tabular-nums">
+            {isPayment ? 'Settled' : formatCurrencyDisplay(fairSharePerPerson)}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {isPayment ? 'confirmed by admin' : 'equal split'}
+          </p>
         </div>
       </div>
 
@@ -124,7 +142,7 @@ export default async function MeetingDetailPage({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2.5 px-1">
           <p className="text-[12px] font-bold text-gray-500 uppercase tracking-wider">
-            Who Paid What
+            {isPayment ? 'Transfer Details' : 'Who Paid What'}
           </p>
           {meeting.status === 'OPEN' && (
             <span className="text-[11px] text-gray-400">Tap pencil to edit</span>
@@ -134,8 +152,11 @@ export default async function MeetingDetailPage({
         <div className="ios-list shadow-sm">
           {meeting.attendees.map((attendee, index) => {
             const expense = meeting.expenses.find(e => e.userId === attendee.userId)
-            const spent = expense ? parseFloat(expense.amount.toString()) : 0
-            const participantSummary = summary.participants.find(p => p.userId === attendee.userId)
+            const spent = isPayment
+              ? (attendee.userId === payerId ? paymentAmount : 0)
+              : (expense ? parseFloat(expense.amount.toString()) : 0)
+            const isPayer = isPayment && attendee.userId === payerId
+            const isPayee = isPayment && attendee.userId === payeeSettlement?.userId
             const diff = spent - fairSharePerPerson
 
             return (
@@ -158,14 +179,28 @@ export default async function MeetingDetailPage({
                       )}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Paid: <span className={spent > 0 ? 'font-bold text-gray-900' : 'text-gray-400'}>{formatCurrencyDisplay(spent)}</span>
+                      {isPayment ? (
+                        isPayer ? (
+                          <span className="font-bold text-gray-900">Paid: {formatCurrencyDisplay(paymentAmount)}</span>
+                        ) : isPayee ? (
+                          <span className="font-bold text-emerald-600">Received: {formatCurrencyDisplay(paymentAmount)}</span>
+                        ) : (
+                          <span className="text-gray-400">Participant</span>
+                        )
+                      ) : (
+                        <>Paid: <span className={spent > 0 ? 'font-bold text-gray-900' : 'text-gray-400'}>{formatCurrencyDisplay(spent)}</span></>
+                      )}
                     </p>
                   </div>
                 </div>
 
                 {/* Right: Net Difference or Edit Button */}
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  {meeting.status !== 'OPEN' && (
+                  {isPayment ? (
+                    <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                      Settled ✓
+                    </span>
+                  ) : meeting.status !== 'OPEN' ? (
                     <div className="text-right">
                       {diff > 0.01 ? (
                         <p className="text-xs font-bold text-emerald-600">
@@ -179,7 +214,7 @@ export default async function MeetingDetailPage({
                         <p className="text-xs font-medium text-gray-400">Settled</p>
                       )}
                     </div>
-                  )}
+                  ) : null}
 
                   {(isAdmin || attendee.userId === user.id) && meeting.status === 'OPEN' && (
                     <SpendingModal

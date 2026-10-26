@@ -21,7 +21,7 @@ export default function WhatsAppShareButton({
   groupSlug,
 }: WhatsAppShareButtonProps) {
   function formatAmount(amount: number): string {
-    return `₹${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
+    return `Rs. ${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`
   }
 
   function generateWhatsAppMessage(shareUrl: string): string {
@@ -33,7 +33,7 @@ export default function WhatsAppShareButton({
       month: 'short',
       year: 'numeric',
     })
-    lines.push(`📊 *Group Expense Statement* (${dateFormatted})`)
+    lines.push(`Date: ${dateFormatted}`)
     lines.push('')
 
     // Only show members who have unsettled amounts
@@ -45,17 +45,17 @@ export default function WhatsAppShareButton({
       unsettled.forEach(m => {
         const formatted = formatAmount(m.netBalance)
         if (m.netBalance < 0) {
-          lines.push(`• *${m.name}:* Owes ${formatted}`)
+          lines.push(`${m.name}: ${formatted}`)
         } else {
-          lines.push(`• *${m.name}:* Gets back ${formatted}`)
+          lines.push(`${m.name}: (${formatted})`)
         }
       })
     } else {
-      lines.push('🎉 *All members are settled up!*')
+      lines.push('All members are settled up!')
     }
 
     lines.push('')
-    lines.push(`🔗 View Statement: ${shareUrl}`)
+    lines.push(shareUrl)
 
     return lines.join('\n')
   }
