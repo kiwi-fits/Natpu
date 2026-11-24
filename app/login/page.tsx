@@ -50,6 +50,38 @@ export default function LoginPage() {
     formData.append('password', finalPassword)
 
     startTransition(async () => {
+      try {
+        // Direct Route Handler sets standard HTTP Set-Cookie headers directly (crucial for iOS Safari WebKit)
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: finalUsername,
+            password: finalPassword,
+          }),
+          credentials: 'include',
+        })
+
+        const data = await res.json().catch(() => null)
+        if (res.ok && data?.success) {
+          setIsNavigating(true)
+          toast.success('Welcome back, Admin!')
+          router.refresh()
+          setTimeout(() => {
+            window.location.href = '/dashboard'
+          }, 150)
+          return
+        } else if (data?.error) {
+          toast.error(data.error)
+          return
+        }
+      } catch (err) {
+        console.warn('API login failed, falling back to Server Action:', err)
+      }
+
+      // Fallback to Server Action
       const result = await loginAction(formData)
       if (result.success) {
         setIsNavigating(true)

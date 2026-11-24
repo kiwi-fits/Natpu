@@ -87,33 +87,35 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
       })
     }
 
-    // Detect secure protocol (iOS Safari strictly rejects 'Secure' cookies over HTTP on local IPs)
+    // Detect secure protocol (iOS Safari strictly requires 'Secure' flag on HTTPS)
     const headersList = await headers()
     const forwardedProto = headersList.get('x-forwarded-proto')
     const host = headersList.get('host') || ''
-    const isLocalhostOrIp = host.includes('localhost') || host.includes('127.0.0.1') || /^192\.168\./.test(host) || /^10\./.test(host) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
-    const isSecure = process.env.NODE_ENV === 'production' && forwardedProto !== 'http' && !isLocalhostOrIp
+    const isLocalhostOrIp =
+      host.includes('localhost') ||
+      host.includes('127.0.0.1') ||
+      /^192\.168\./.test(host) ||
+      /^10\./.test(host) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+    const isSecure = forwardedProto === 'https' || (!isLocalhostOrIp && forwardedProto !== 'http')
 
     // Set session cookies for Admin
     const cookieStore = await cookies()
-    // Explicitly delete/expire legacy logged_out cookie
-    cookieStore.set('logged_out', '', { path: '/', maxAge: 0, expires: new Date(0) })
+    // Explicitly delete any legacy logged_out cookie
     cookieStore.delete('logged_out')
 
-    cookieStore.set('auth_user_id', adminUser.id, {
+    const cookieOpts = {
       httpOnly: true,
       secure: isSecure,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
+      sameSite: 'lax' as const,
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
-    })
-    cookieStore.set('auth_group_id', group.id, {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    })
+    }
+
+    // Consolidated auth_session cookie for iOS Safari reliability
+    cookieStore.set('auth_session', `${adminUser.id}:${group.id}`, cookieOpts)
+    cookieStore.set('auth_user_id', adminUser.id, cookieOpts)
+    cookieStore.set('auth_group_id', group.id, cookieOpts)
 
     return { success: true, data: undefined }
   } catch (err: any) {
@@ -125,12 +127,13 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
 export async function logoutAction(): Promise<ActionResult> {
   try {
     const cookieStore = await cookies()
+    cookieStore.delete('auth_session')
     cookieStore.delete('auth_user_id')
     cookieStore.delete('auth_group_id')
     cookieStore.delete('logged_out')
+    cookieStore.set('auth_session', '', { path: '/', maxAge: 0, expires: new Date(0) })
     cookieStore.set('auth_user_id', '', { path: '/', maxAge: 0, expires: new Date(0) })
     cookieStore.set('auth_group_id', '', { path: '/', maxAge: 0, expires: new Date(0) })
-    cookieStore.set('logged_out', '', { path: '/', maxAge: 0, expires: new Date(0) })
     return { success: true, data: undefined }
   } catch {
     return { success: false, error: 'Failed to log out.' }

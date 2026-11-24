@@ -11,6 +11,11 @@ export default function LogoutButton() {
   async function handleLogout() {
     if (loading) return
     setLoading(true)
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    } catch {
+      // Ignore network errors on logout API
+    }
     await logoutAction()
     toast.success('Signed out successfully')
     setTimeout(() => {

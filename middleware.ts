@@ -13,10 +13,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request })
   }
 
-  const hasSessionCookie = Boolean(request.cookies.get('auth_user_id')?.value)
-  const hasGroupCookie = Boolean(request.cookies.get('auth_group_id')?.value)
+  // API auth endpoints — always allow
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next({ request })
+  }
 
-  const isAuthenticated = hasSessionCookie && hasGroupCookie
+  const hasAuthSession = Boolean(request.cookies.get('auth_session')?.value)
+  const hasIndividualCookies =
+    Boolean(request.cookies.get('auth_user_id')?.value) &&
+    Boolean(request.cookies.get('auth_group_id')?.value)
+
+  const isAuthenticated = hasAuthSession || hasIndividualCookies
 
   // Public Login Route
   if (pathname === '/login') {

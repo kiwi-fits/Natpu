@@ -17,18 +17,49 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
   try {
     const cookieStore = await cookies()
 
-    const sessionUserId = cookieStore.get('auth_user_id')?.value
-    const sessionGroupId = cookieStore.get('auth_group_id')?.value
+    let sessionUserId = cookieStore.get('auth_user_id')?.value
+    let sessionGroupId = cookieStore.get('auth_group_id')?.value
+    const sessionToken = cookieStore.get('auth_session')?.value
 
-    if (sessionUserId && sessionGroupId) {
+    // If individual cookies are absent or dropped, unpack from combined auth_session
+    if ((!sessionUserId || !sessionGroupId) && sessionToken && sessionToken.includes(':')) {
+      const parts = sessionToken.split(':')
+      sessionUserId = sessionUserId || parts[0]
+      sessionGroupId = sessionGroupId || parts[1]
+    }
+
+    if (sessionUserId) {
       const dbUser = await prisma.user.findUnique({
-        where: { id: sessionUserId, status: 'ACTIVE', groupId: sessionGroupId },
-        select: { id: true, name: true, email: true, role: true, groupId: true, group: { select: { name: true, slug: true } } },
+        where: { id: sessionUserId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          groupId: true,
+          group: { select: { name: true, slug: true } },
+        },
       })
-      if (dbUser) return { ...dbUser, role: dbUser.role as Role, groupName: dbUser.group.name, groupSlug: dbUser.group.slug }
+
+      if (
+        dbUser &&
+        dbUser.status === 'ACTIVE' &&
+        (!sessionGroupId || dbUser.groupId === sessionGroupId)
+      ) {
+        return {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role as Role,
+          groupId: dbUser.groupId,
+          groupName: dbUser.group.name,
+          groupSlug: dbUser.group.slug,
+        }
+      }
     }
   } catch (err) {
-    // Non-request context
+    console.error('getAuthUser error:', err)
   }
 
   return null

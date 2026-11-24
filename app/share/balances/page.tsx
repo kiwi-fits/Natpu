@@ -30,7 +30,13 @@ export default async function ShareBalancesPage({
   const groupSlug = resolvedParams.group?.trim().toLowerCase()
 
   const cookieStore = await cookies()
-  const cookieGroupId = cookieStore.get('auth_group_id')?.value
+  let cookieGroupId = cookieStore.get('auth_group_id')?.value
+  if (!cookieGroupId) {
+    const sessionToken = cookieStore.get('auth_session')?.value
+    if (sessionToken && sessionToken.includes(':')) {
+      cookieGroupId = sessionToken.split(':')[1]
+    }
+  }
 
   let targetGroup = null
   if (groupSlug) {

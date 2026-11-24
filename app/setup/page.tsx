@@ -65,12 +65,34 @@ export default function SetupGroupPage() {
         toast.success(`Group "${name.trim()}" created successfully! Signing in...`)
         
         // Auto-login to new group with the chosen username & password
-        const loginFormData = new FormData()
-        loginFormData.append('username', username.trim().toLowerCase())
-        loginFormData.append('password', password)
+        let loginSuccess = false
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: username.trim().toLowerCase(),
+              password: password,
+            }),
+            credentials: 'include',
+          })
+          const data = await res.json().catch(() => null)
+          if (res.ok && data?.success) {
+            loginSuccess = true
+          }
+        } catch {
+          // Fall back to server action
+        }
 
-        const loginRes = await loginAction(loginFormData)
-        if (loginRes.success) {
+        if (!loginSuccess) {
+          const loginFormData = new FormData()
+          loginFormData.append('username', username.trim().toLowerCase())
+          loginFormData.append('password', password)
+          const loginRes = await loginAction(loginFormData)
+          loginSuccess = loginRes.success
+        }
+
+        if (loginSuccess) {
           setIsNavigating(true)
           router.refresh()
           setTimeout(() => {
