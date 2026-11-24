@@ -13,11 +13,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request })
   }
 
-  const isLoggedOutCookie = request.cookies.get('logged_out')?.value === 'true'
   const hasSessionCookie = Boolean(request.cookies.get('auth_user_id')?.value)
   const hasGroupCookie = Boolean(request.cookies.get('auth_group_id')?.value)
 
-  const isAuthenticated = !isLoggedOutCookie && hasSessionCookie && hasGroupCookie
+  const isAuthenticated = hasSessionCookie && hasGroupCookie
 
   // Public Login Route
   if (pathname === '/login') {

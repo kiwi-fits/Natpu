@@ -17,11 +17,6 @@ export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
   try {
     const cookieStore = await cookies()
 
-    const isLoggedOut = cookieStore.get('logged_out')?.value === 'true'
-    if (isLoggedOut) {
-      return null
-    }
-
     const sessionUserId = cookieStore.get('auth_user_id')?.value
     const sessionGroupId = cookieStore.get('auth_group_id')?.value
 

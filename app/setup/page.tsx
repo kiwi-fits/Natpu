@@ -15,6 +15,7 @@ export default function SetupGroupPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [usernameEdited, setUsernameEdited] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   function handleNameChange(val: string) {
@@ -70,7 +71,11 @@ export default function SetupGroupPage() {
 
         const loginRes = await loginAction(loginFormData)
         if (loginRes.success) {
-          window.location.href = '/dashboard'
+          setIsNavigating(true)
+          router.refresh()
+          setTimeout(() => {
+            window.location.href = '/dashboard'
+          }, 150)
         } else {
           router.push('/login')
         }
@@ -118,11 +123,14 @@ export default function SetupGroupPage() {
               </label>
               <input
                 id="group-name"
+                name="name"
                 type="text"
                 value={name}
                 onChange={e => handleNameChange(e.target.value)}
                 placeholder="e.g. Office Lunch Squad"
                 className="input"
+                autoComplete="organization"
+                autoCorrect="off"
                 required
                 autoFocus
               />
@@ -138,11 +146,16 @@ export default function SetupGroupPage() {
               </label>
               <input
                 id="admin-username"
+                name="username"
                 type="text"
                 value={username}
                 onChange={e => handleUsernameChange(e.target.value)}
                 placeholder="officelunch"
                 className="input font-mono lowercase"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
               />
               <p className="text-ios-caption2 text-ios-gray mt-1">
@@ -158,11 +171,16 @@ export default function SetupGroupPage() {
               <div className="relative">
                 <input
                   id="admin-password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
                   className="input pr-12 font-mono"
+                  autoComplete="new-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                   minLength={6}
                 />
@@ -184,11 +202,16 @@ export default function SetupGroupPage() {
               </label>
               <input
                 id="confirm-password"
+                name="confirmPassword"
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Re-enter password"
                 className="input font-mono"
+                autoComplete="new-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
                 minLength={6}
               />
@@ -197,11 +220,11 @@ export default function SetupGroupPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isNavigating}
               className="btn-primary w-full py-3.5 rounded-[16px] text-ios-body font-semibold flex items-center justify-center gap-2 mt-5 disabled:opacity-50"
               id="create-group-submit"
             >
-              {isPending ? (
+              {isPending || isNavigating ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>

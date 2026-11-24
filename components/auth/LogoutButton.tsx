@@ -13,7 +13,9 @@ export default function LogoutButton() {
     setLoading(true)
     await logoutAction()
     toast.success('Signed out successfully')
-    window.location.href = '/login'
+    setTimeout(() => {
+      window.location.href = '/login'
+    }, 100)
   }
 
   return (

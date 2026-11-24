@@ -3,8 +3,9 @@
 import { useState, useTransition } from 'react'
 import { createMember, createMembersBulk, updateMember, deactivateMember, reactivateMember } from '@/actions/members'
 import { toast } from 'sonner'
-import { Plus, X, UserX, UserCheck, MoreVertical, Pencil, Trash2, Users as UsersIcon } from 'lucide-react'
+import { Plus, X, UserX, UserCheck, MoreVertical, Pencil, Trash2, ArrowUpRight, ArrowDownRight, CheckCircle2 } from 'lucide-react'
 import { Role, UserStatus } from '@/lib/types/database'
+import { formatCurrencyDisplay } from '@/lib/utils'
 
 type Member = {
   id: string
@@ -14,6 +15,10 @@ type Member = {
   role: Role
   status: UserStatus
   _count: { meetingAttendees: number }
+  netBalance?: number
+  pendingToPay?: number
+  pendingToReceive?: number
+
 }
 
 const avatarColors = [
@@ -35,6 +40,8 @@ export default function MembersClient({
   const [editingMember, setEditingMember] = useState<Member | null>(null)
   const [editName, setEditName] = useState('')
   const [activeMenu, setActiveMenu] = useState<string | null>(null)
+
+
 
   // Form state: Single
   const [name, setName] = useState('')
@@ -131,6 +138,8 @@ export default function MembersClient({
     setActiveMenu(null)
   }
 
+
+
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault()
     if (!editingMember) return
@@ -221,9 +230,28 @@ export default function MembersClient({
                       </span>
                     )}
                   </div>
-                  <p className="text-ios-caption1 text-ios-gray mt-0.5">
-                    {member._count.meetingAttendees} {member._count.meetingAttendees === 1 ? 'meeting' : 'meetings'} attended
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    {(member.netBalance ?? 0) > 0.009 ? (
+                      <span className="text-[12px] font-semibold text-emerald-600 flex items-center gap-0.5">
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        Gets back {formatCurrencyDisplay(member.netBalance)}
+                      </span>
+                    ) : (member.netBalance ?? 0) < -0.009 ? (
+                      <span className="text-[12px] font-semibold text-rose-600 flex items-center gap-0.5">
+                        <ArrowDownRight className="w-3.5 h-3.5" />
+                        Owes {formatCurrencyDisplay(Math.abs(member.netBalance!))}
+                      </span>
+                    ) : (
+                      <span className="text-[12px] font-medium text-gray-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        All settled
+                      </span>
+                    )}
+                    <span className="text-gray-300 text-[10px]">•</span>
+                    <span className="text-ios-caption1 text-ios-gray">
+                      {member._count.meetingAttendees} {member._count.meetingAttendees === 1 ? 'meeting' : 'meetings'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -237,7 +265,8 @@ export default function MembersClient({
                 {activeMenu === member.id && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setActiveMenu(null)} />
-                    <div className="absolute right-0 top-9 w-36 bg-white rounded-xl shadow-lg border border-black/[0.08] z-20 overflow-hidden animate-scale-in">
+                    <div className="absolute right-0 top-9 w-44 bg-white rounded-xl shadow-lg border border-black/[0.08] z-20 overflow-hidden animate-scale-in">
+
                       <button
                         onClick={() => handleOpenEdit(member)}
                         className="w-full flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium text-primary hover:bg-black/5 border-b border-black/[0.06]"
@@ -578,6 +607,7 @@ export default function MembersClient({
           </div>
         </div>
       )}
+
     </div>
   )
 }

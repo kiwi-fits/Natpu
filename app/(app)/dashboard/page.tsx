@@ -26,14 +26,21 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     prisma.notification.findMany({
       where: { userId: user.id },
-      include: {
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        read: true,
+        createdAt: true,
+        meetingId: true,
         meeting: {
-          include: {
-            expenses: true,
-            attendees: {
-              include: { user: { select: { id: true, name: true } } },
-            },
-            settlements: true,
+          select: {
+            id: true,
+            title: true,
+            date: true,
+            expenses: { select: { amount: true } },
+            attendees: { select: { user: { select: { name: true } } } },
           },
         },
       },
@@ -47,12 +54,15 @@ export default async function DashboardPage() {
     prisma.meeting.findFirst({
       where: { groupId: user.groupId },
       orderBy: { createdAt: 'desc' },
-      include: { expenses: true },
+      select: {
+        date: true,
+        createdAt: true,
+        expenses: { select: { amount: true } },
+      },
     }),
     prisma.user.findMany({
       where: { status: 'ACTIVE', groupId: user.groupId },
-      select: { id: true, name: true, role: true, avatarUrl: true },
-    }),
+    }) as Promise<Array<{ id: string; name: string; role: Role; avatarUrl: string | null }>>,
     prisma.meeting.findMany({
       where: { status: { in: ['CALCULATED', 'SETTLED'] }, groupId: user.groupId },
       include: {
@@ -117,7 +127,8 @@ export default async function DashboardPage() {
       }
     }
 
-    const netBalance = (totalSpent + settledPaid) - (totalFairShare + settledRefunded)
+    let netBalance = (totalSpent + settledPaid) - (totalFairShare + settledRefunded)
+
 
     return {
       id: member.id,

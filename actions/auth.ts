@@ -1,13 +1,14 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { prisma } from '@/lib/db'
 import type { ActionResult } from './meetings'
 
 
 export async function loginAction(formData: FormData): Promise<ActionResult> {
   try {
-    const identifier = (formData.get('username') as string || '').trim().toLowerCase()
+    const rawIdentifier = (formData.get('username') as string || '').trim()
+    const identifier = rawIdentifier.toLowerCase()
     const password = (formData.get('password') as string || '').trim()
 
     if (!identifier || !password) {
@@ -24,6 +25,7 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
           { slug: normalizedHyphen },
           { slug: normalizedClean },
           { name: { equals: identifier } },
+          { name: { equals: rawIdentifier } },
         ],
       },
     })
@@ -37,8 +39,10 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
           status: 'ACTIVE',
           OR: [
             { email: identifier },
+            { email: rawIdentifier },
             { email: `${identifier}@splitmeet.local` },
             { name: { equals: identifier } },
+            { name: { equals: rawIdentifier } },
           ],
         },
         include: { group: true },
@@ -83,19 +87,29 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
       })
     }
 
+    // Detect secure protocol (iOS Safari strictly rejects 'Secure' cookies over HTTP on local IPs)
+    const headersList = await headers()
+    const forwardedProto = headersList.get('x-forwarded-proto')
+    const host = headersList.get('host') || ''
+    const isLocalhostOrIp = host.includes('localhost') || host.includes('127.0.0.1') || /^192\.168\./.test(host) || /^10\./.test(host) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)
+    const isSecure = process.env.NODE_ENV === 'production' && forwardedProto !== 'http' && !isLocalhostOrIp
+
     // Set session cookies for Admin
     const cookieStore = await cookies()
+    // Explicitly delete/expire legacy logged_out cookie
+    cookieStore.set('logged_out', '', { path: '/', maxAge: 0, expires: new Date(0) })
     cookieStore.delete('logged_out')
+
     cookieStore.set('auth_user_id', adminUser.id, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
     })
     cookieStore.set('auth_group_id', group.id, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
@@ -113,13 +127,10 @@ export async function logoutAction(): Promise<ActionResult> {
     const cookieStore = await cookies()
     cookieStore.delete('auth_user_id')
     cookieStore.delete('auth_group_id')
-    cookieStore.set('logged_out', 'true', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    })
+    cookieStore.delete('logged_out')
+    cookieStore.set('auth_user_id', '', { path: '/', maxAge: 0, expires: new Date(0) })
+    cookieStore.set('auth_group_id', '', { path: '/', maxAge: 0, expires: new Date(0) })
+    cookieStore.set('logged_out', '', { path: '/', maxAge: 0, expires: new Date(0) })
     return { success: true, data: undefined }
   } catch {
     return { success: false, error: 'Failed to log out.' }

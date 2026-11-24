@@ -36,8 +36,8 @@ model User {
   role      String   @default("MEMBER")
   status    String   @default("ACTIVE")
   avatarUrl String?
-  groupId   String
-  createdAt DateTime @default(now())
+  groupId       String
+  createdAt     DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations

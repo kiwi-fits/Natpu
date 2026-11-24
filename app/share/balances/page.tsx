@@ -55,8 +55,7 @@ export default async function ShareBalancesPage({
         status: 'ACTIVE',
         ...(groupId ? { groupId } : {}),
       },
-      select: { id: true, name: true, role: true },
-    }),
+    }) as Promise<Array<{ id: string; name: string; role: string }>>,
     prisma.meeting.findMany({
       where: {
         status: { in: ['CALCULATED', 'SETTLED'] },
@@ -140,7 +139,8 @@ export default async function ShareBalancesPage({
       })
     }
 
-    const netBalance = (totalSpent + settledPaid) - (totalFairShare + settledRefunded)
+    let netBalance = (totalSpent + settledPaid) - (totalFairShare + settledRefunded)
+
 
     return {
       id: member.id,

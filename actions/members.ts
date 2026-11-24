@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireAdmin } from '@/lib/auth/helpers'
-import { createAuditLog } from '@/lib/audit'
+import { createAuditLog, createNotification } from '@/lib/audit'
 import { updateMemberSchema } from '@/lib/validation/schemas'
 import type { ActionResult } from './meetings'
 

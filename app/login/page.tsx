@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { loginAction } from '@/actions/auth'
 import { toast } from 'sonner'
@@ -12,24 +12,53 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  async function handleLogin(e: React.FormEvent) {
+  const usernameRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+
+  // Sync autofill or external DOM value changes into state
+  const syncAutofill = () => {
+    if (usernameRef.current && usernameRef.current.value !== username) {
+      setUsername(usernameRef.current.value)
+    }
+    if (passwordRef.current && passwordRef.current.value !== password) {
+      setPassword(passwordRef.current.value)
+    }
+  }
+
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!username.trim() || !password) {
+
+    // Read directly from DOM refs / form elements to ensure iOS Safari autofill is captured
+    const form = e.currentTarget
+    const formElements = form.elements as typeof form.elements & {
+      username?: HTMLInputElement
+      password?: HTMLInputElement
+    }
+    const finalUsername = (usernameRef.current?.value || formElements.username?.value || username).trim()
+    const finalPassword = passwordRef.current?.value || formElements.password?.value || password
+
+    if (!finalUsername || !finalPassword) {
       toast.error('Please enter your username and password.')
       return
     }
 
     const formData = new FormData()
-    formData.append('username', username.trim())
-    formData.append('password', password)
+    formData.append('username', finalUsername)
+    formData.append('password', finalPassword)
 
     startTransition(async () => {
       const result = await loginAction(formData)
       if (result.success) {
+        setIsNavigating(true)
         toast.success('Welcome back, Admin!')
-        window.location.href = '/dashboard'
+        // Allow iOS Safari / WebKit time to persist cookies in the jar before navigation
+        router.refresh()
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 150)
       } else {
         toast.error(result.error)
       }
@@ -66,12 +95,20 @@ export default function LoginPage() {
             <div>
               <label htmlFor="username" className="label">Username</label>
               <input
+                ref={usernameRef}
                 id="username"
+                name="username"
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
+                onBlur={syncAutofill}
+                onAnimationStart={syncAutofill}
                 placeholder="Username"
                 className="input"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
                 autoFocus
               />
@@ -82,12 +119,20 @@ export default function LoginPage() {
               <label htmlFor="password" className="label">Password</label>
               <div className="relative">
                 <input
+                  ref={passwordRef}
                   id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  onBlur={syncAutofill}
+                  onAnimationStart={syncAutofill}
                   placeholder="••••••••••••"
                   className="input pr-12 font-mono"
+                  autoComplete="current-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                 />
                 <button
@@ -104,11 +149,11 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isNavigating}
               className="btn-primary w-full py-3.5 rounded-[16px] text-ios-body font-semibold flex items-center justify-center gap-2 mt-4"
               id="login-submit"
             >
-              {isPending ? (
+              {isPending || isNavigating ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
